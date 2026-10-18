@@ -1,0 +1,6 @@
+streamlit>=1.40
+numpy
+plotly>=5.20
+matplotlib
+sympy
+kaleido

@@ -1,0 +1,3 @@
+fonts-ipaexfont-gothic
+fonts-noto-cjk
+chromium
