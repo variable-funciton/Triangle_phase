@@ -57,7 +57,7 @@ w = omega(k, m)
 T = period(k, m)
 mu = gamma = 0.0
 if model == "friction":
-    mu = st.sidebar.slider("動摩擦係数 μ", 0.01, 0.50, 0.08, 0.01, key="sp_mu")
+    mu = st.sidebar.slider("動摩擦係数 μ", 0.01, 0.25, 0.08, 0.005, key="sp_mu")
 elif model == "viscous":
     gamma = st.sidebar.slider("抵抗の強さ γ [1/s]", 0.05, round(0.6 * w, 2), min(0.3, round(0.6 * w, 2)), 0.05,
                               key="sp_gamma")
