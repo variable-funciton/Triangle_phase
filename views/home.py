@@ -85,6 +85,15 @@ with st.container(border=True):
     st.caption("関連: 後期課題1〜3（三角比の定義 tan θ = b/a）・斜方投射のページ")
     st.page_link("views/monkey.py", label="ページを開く", icon="➡️")
 
+with st.container(border=True):
+    st.subheader("〰️ バネの単振動と波（物理への応用）")
+    st.markdown(
+        r"ばねの単振動 $x = x_0\cos\omega t$ を等速円運動の影として見る。動摩擦や空気の抵抗があると振幅が"
+        "等差数列・等比数列で減っていく様子、横波と縦波が伝わる様子をアニメーションで見る。"
+    )
+    st.caption("関連: 後期課題1〜5（三角関数の定義・グラフ）・課題9〜10（等差・等比数列）")
+    st.page_link("views/spring.py", label="ページを開く", icon="➡️")
+
 st.divider()
 with st.expander("使い方のヒント"):
     st.markdown(
