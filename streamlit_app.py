@@ -12,6 +12,9 @@ PAGES = {
     "はじめに": [
         st.Page("views/home.py", title="ホーム", icon="🏠", default=True),
     ],
+    "基礎知識": [
+        st.Page("views/basics.py", title="三角比・三角関数の公式まとめ", icon="📚", url_path="basics"),
+    ],
     "三角関数のグラフ": [
         st.Page("views/general_form.py", title="一般形 y = A sin B(x − t) + β", icon="🌊",
                 url_path="general_form"),
