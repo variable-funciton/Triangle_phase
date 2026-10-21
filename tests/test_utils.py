@@ -38,6 +38,24 @@ def test_latex():
     assert w.latex("expanded") == r"y = 2\sin\left(2x - \frac{\pi}{3}\right) + \frac{1}{2}"
     assert Wave("cos", F(3,2), F(1,2), 0, 0).latex() == r"y = \frac{3}{2}\cos \frac{1}{2}x"
 
+def test_decimal_t_and_text():
+    import math
+    from utils.angles import pi_text, deg_text, pi_latex
+    assert pi_text(1.25 / math.pi) == "1.25" and pi_text(-0.5 / math.pi) == "−0.5"
+    assert deg_text(0.25) == "45°" and pi_latex(2.5 / math.pi) == "2.5"
+    w = Wave("sin", 2, 2, 1.25 / math.pi, 1)
+    assert isinstance(w.t, float)
+    x = np.linspace(-3, 3, 13)
+    assert np.allclose(w.y(x), 2 * np.sin(2 * (x - 1.25)) + 1)
+    assert w.text() == "y = 2 sin 2(x − 1.25) + 1" and w.text("expanded") == "y = 2 sin(2x − 2.5) + 1"
+    assert w.latex() == r"y = 2\sin 2\left(x - 1.25\right) + 1"
+    assert Wave("sin", 2, 2, F(1, 3), 1).text() == "y = 2 sin 2(x − π/3) + 1"
+    assert Wave("cos", F(-1, 2), 1, F(-1, 4), F(-3, 2)).text() == "y = −1/2 cos(x + π/4) − 3/2"
+    assert Wave().text() == "y = sin x"
+    kp = w.key_points()
+    assert abs(float(kp[0][0]) * math.pi - 1.25) < 1e-12
+
+
 if __name__ == "__main__":
-    for f in [test_angles, test_wave_values, test_latex]:
+    for f in [test_angles, test_wave_values, test_latex, test_decimal_t_and_text]:
         f(); print(f.__name__, "ok")
