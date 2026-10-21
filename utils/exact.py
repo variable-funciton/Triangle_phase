@@ -212,3 +212,18 @@ def sqrt_text(x) -> str:
         num, den = s[len(r"\frac{"):-1].split("}{")
         s = f"{num}/{den}"
     return s.replace(r"\sqrt{", "√").replace("}", "")
+
+
+def tan_deg(deg):
+    """deg が 15 の倍数のときの tan の厳密値（定義されないときは None）。
+    tan θ = (1 − cos 2θ) / sin 2θ を使う（sin 2θ は 1 項だけの数なので割り算ができる）"""
+    if not is_nice_deg(deg):
+        raise ValueError("15° の倍数のみ")
+    d = int(Fraction(deg)) % 180
+    if d == 0:
+        return Q236(0)
+    if d == 90:
+        return None
+    s2 = sin_deg(2 * d)
+    inv = s2 * (1 / (s2 * s2).as_rational())
+    return (1 - cos_deg(2 * d)) * inv
