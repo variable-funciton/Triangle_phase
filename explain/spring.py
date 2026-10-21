@@ -20,6 +20,7 @@ def render(m: float, k: float, x0: float, model: str, mu: float, gamma: float):
     st.markdown("マイナスは「ずれと反対向き」を表します。この「ずれに比例して、もとに戻そうとする力」がはたらくと、"
                 "おもりは自然の長さの位置（つり合いの位置）を中心に往復運動します。これが **単振動** です。")
 
+    st.caption("※ 1〜3 は摩擦や空気抵抗がない理想的な場合。摩擦・抵抗があるときは 4・5 を見よう。")
     st.markdown("### 1. 等速円運動の影として見る")
     st.markdown(
         r"半径 $A$ の円の上を、一定の角速度 $\omega$ [rad/s]（1 秒間に回る角）で回る点 P を考えます。"
@@ -85,6 +86,13 @@ def render(m: float, k: float, x0: float, model: str, mu: float, gamma: float):
         "各点はその場で単振動するだけで、物が流れていくわけではありません（進むのは **振動の形** と **エネルギー**）。"
     )
     st.latex(r"y = A\sin 2\pi\left(\frac{t}{T} - \frac{x}{\lambda}\right),\qquad v = \frac{\lambda}{T} = f\lambda")
+    st.markdown(
+        "**注意：x–t グラフと y–x グラフの区別**\n\n"
+        "- **単振動の x–t グラフ**は、1 つのおもりの位置を時間を追ってかいたもの（横軸は時刻 t）。\n"
+        "- **波の y–x グラフ（波形）**は、ある瞬間のたくさんの点の位置を写真のように写したもの（横軸は場所 x）。\n\n"
+        r"波の式で場所 $x$ を固定すると、その点の x–t グラフ（単振動）になり、時刻 $t$ を固定すると y–x グラフ（波形）になる。"
+        "形が似ていても、何を横軸にとったグラフなのかを必ず確認しよう。"
+    )
     st.markdown(
         r"- 原点の点は $y = A\sin\dfrac{2\pi}{T}t$ で振動する。場所 $x$ の点は、振動が届くまでの時間 $\dfrac{x}{v}$ だけ **遅れて** 同じ振動をする。" "\n"
         r"  $\sin\dfrac{2\pi}{T}\left(t - \dfrac{x}{v}\right) = \sin 2\pi\left(\dfrac{t}{T} - \dfrac{x}{\lambda}\right)$（$vT = \lambda$）。" "\n"

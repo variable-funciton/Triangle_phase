@@ -6,7 +6,25 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
+from utils.exact import cos_deg, sin_deg
+
 G = 9.8
+
+
+def num(v: float) -> str:
+    """整数になる値は整数で、そうでない値は小数第 3 位まで"""
+    return str(round(v)) if abs(v - round(v)) < 1e-9 else f"{v:.3f}"
+
+
+def component_tex(v0: float, theta: float, func: str) -> str:
+    """v0 sinθ / v0 cosθ の値。15° の倍数なら厳密値を「=」で、割り切れない値だけ「≈」をつける"""
+    if float(theta).is_integer() and int(theta) % 15 == 0 and float(v0).is_integer():
+        q = (sin_deg(int(theta)) if func == "sin" else cos_deg(int(theta))) * int(v0)
+        if q.is_rational():
+            return f"= {q.latex()}"
+        return rf"= {q.latex()} \approx {float(q):.3f}"
+    val = v0 * (math.sin(math.radians(theta)) if func == "sin" else math.cos(math.radians(theta)))
+    return rf"\approx {val:.3f}"
 
 
 def _vector_figure(v0: float, theta: float):
@@ -57,7 +75,8 @@ def render(v0: float, theta: float):
     with c2, st.container(border=True):
         st.markdown("**等加速度直線運動**（上向きを正、加速度 −g）")
         st.latex(r"v = v_0 - gt,\qquad y = v_0 t - \frac{1}{2}gt^2")
-        st.caption("速度は 1 次関数、位置は t の 2 次関数（放物線）")
+        st.caption("速度は t の 1 次関数、位置は t の 2 次関数（これは y と t の関係。"
+                   "実際の軌跡が放物線になることは、4. で y を x の式で表して初めて示される）")
     st.markdown("これらは物理の授業で学ぶ式です。ここではこの 2 つの式と三角関数だけを使います。")
 
     st.markdown("### 2. 初速度を分ける（ここで三角比を使う）")
@@ -68,7 +87,8 @@ def render(v0: float, theta: float):
         st.markdown(r"初速度の矢印を斜辺とする直角三角形を考えると、三角比の定義から")
         st.latex(r"\cos\theta = \frac{\text{水平成分}}{v_0},\qquad \sin\theta = \frac{\text{鉛直成分}}{v_0}")
         st.latex(r"\text{水平成分} = v_0\cos\theta,\qquad \text{鉛直成分} = v_0\sin\theta")
-        st.latex(rf"v_0\cos {theta}^\circ \approx {vx:.3f},\qquad v_0\sin {theta}^\circ \approx {vy:.3f}\ [\text{{m/s}}]")
+        st.latex(rf"{v0}\cos {theta}^\circ {component_tex(v0, theta, 'cos')},\qquad "
+                 rf"{v0}\sin {theta}^\circ {component_tex(v0, theta, 'sin')}\ [\text{{m/s}}]")
 
     st.markdown("### 3. 時刻 t での位置と速度")
     st.latex(r"\text{水平：}\ x = v_0\cos\theta\cdot t,\qquad v_x = v_0\cos\theta\ (\text{一定})")
@@ -100,9 +120,10 @@ def render(v0: float, theta: float):
     )
 
     st.markdown(f"### 7. 例題（いまの設定：v₀ = {v0} m/s、θ = {theta}°）")
-    st.latex(rf"t_{{\text{{最高点}}}} = \frac{{{vy:.3f}}}{{9.8}} \approx {vy / G:.3f}\ \text{{s}},\qquad "
-             rf"H = \frac{{{vy:.3f}^2}}{{2\times 9.8}} \approx {H:.3f}\ \text{{m}}")
-    st.latex(rf"T = 2\times {vy / G:.3f} \approx {T:.3f}\ \text{{s}},\qquad L = {vx:.3f}\times {T:.3f} \approx {L:.3f}\ \text{{m}}")
+    st.latex(rf"v_0\cos\theta {component_tex(v0, theta, 'cos')},\qquad v_0\sin\theta {component_tex(v0, theta, 'sin')}")
+    st.latex(rf"t_{{\text{{最高点}}}} = \frac{{{num(vy)}}}{{9.8}} \approx {vy / G:.3f}\ \text{{s}},\qquad "
+             rf"H = \frac{{{num(vy)}^2}}{{2\times 9.8}} \approx {H:.3f}\ \text{{m}}")
+    st.latex(rf"T = \frac{{2\times {num(vy)}}}{{9.8}} \approx {T:.3f}\ \text{{s}},\qquad L = v_0\cos\theta\times T \approx {num(vx)}\times {T:.3f} \approx {L:.3f}\ \text{{m}}")
     st.latex(rf"L = \frac{{{v0}^2\sin {2 * theta}^\circ}}{{9.8}} \approx {v0 ** 2 * math.sin(2 * th) / G:.3f}\ \text{{m}}"
              r"\quad(\text{2倍角の公式を使った式でも同じ})")
     st.markdown(f"最高点での速さは 0 ではなく、水平成分の **{vx:.2f} m/s** が残っています。")

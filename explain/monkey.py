@@ -39,7 +39,7 @@ def render(a: float, b: float, v0: float):
     st.latex(r"\tan\theta = \frac{b}{a},\qquad \cos\theta = \frac{a}{\sqrt{a^2 + b^2}},\qquad \sin\theta = \frac{b}{\sqrt{a^2 + b^2}}")
     st.latex(rf"\text{{いまの設定：}}\ \tan\theta = \frac{{{b}}}{{{a}}},\quad \sqrt{{{a}^2 + {b}^2}} \approx {r:.3f},\quad \theta \approx {th:.2f}^\circ")
 
-    st.markdown("### 3. A が B の真下（真上）に来る時刻")
+    st.markdown("### 3. A が B と同じ水平位置（x = a）に到達する時刻")
     st.latex(r"x_A = a \;\Longrightarrow\; v_0\cos\theta\cdot t^* = a \;\Longrightarrow\; t^* = \frac{a}{v_0\cos\theta} = \frac{a}{v_0}\cdot\frac{\sqrt{a^2+b^2}}{a} = \frac{\sqrt{a^2+b^2}}{v_0}")
     st.markdown(r"$t^*$ は「O から B までの距離 ÷ 初速度」。重力がなければ、A がまっすぐ B に着く時刻と同じです。")
 
@@ -67,7 +67,8 @@ def render(a: float, b: float, v0: float):
         )
 
     st.markdown("### 6. 当たる条件（初速度はどれだけ必要？）")
-    st.markdown(r"ぶつかる前に B（と A）が地面に着いてしまうと外れます。ぶつかる高さが 0 より大きければよいので")
+    st.markdown(r"ぶつかる前に B（と A）が地面に着いてしまうと外れます。地面を $y = 0$ とし、発射点 O も地面の高さにあるとすると、"
+                r"ぶつかる高さが 0 より大きければよいので")
     st.latex(r"b - \frac{1}{2}g{t^*}^2 > 0 \;\Longleftrightarrow\; b - \frac{g(a^2+b^2)}{2v_0^2} > 0 \;\Longleftrightarrow\; v_0^2 > \frac{g(a^2+b^2)}{2b}")
     st.latex(r"v_0 > \sqrt{\frac{g(a^2+b^2)}{2b}}")
     st.markdown(
@@ -93,7 +94,10 @@ def render(a: float, b: float, v0: float):
         "- **速く撃てばいつでも当たる／遅くても当たる** → 当たるのは v₀ > v_min のときだけ。"
         "遅すぎると、出会う前に地面に落ちる。\n"
         "- **B を放すのが少し遅れても当たる** → B が高い位置に残り、A は B の下を通る。「同時に」が必要。\n"
-        "- **空気抵抗があっても当たる** → 空気抵抗は A と B で同じではない（速さが違う）ので、厳密には当たらない。"
+        "- **空気抵抗があっても当たる** → 空気抵抗は速さによって変わり、運動の向きと反対向きにはたらく。"
+        "A は横にも上下にも動いていて B より速く、抵抗の向きも斜めなので、"
+        "**鉛直方向の落下をさまたげる加速度の大きさが A と B で違う**。"
+        "すると「同じ時刻に同じだけ落ちる」が成り立たなくなり、厳密には当たらない（A は水平方向にも減速するので、x = a に着くのも遅れる）。"
     )
 
     st.markdown("### 9. 練習問題")
