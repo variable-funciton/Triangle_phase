@@ -2,12 +2,15 @@
 
 角度はすべて「π の何倍か」を表す Fraction で扱う。
     例: Fraction(1, 2) -> π/2,  Fraction(-3, 4) -> -3π/4
+float が渡されたときは「π の倍数で表せない小数の角」とみなし、ラジアン（または度）の小数で表示する。
+    例: 1.25/π（= 1.25 rad）-> '1.25'、度数法なら '71.6°'
 Plotly の目盛りは LaTeX を表示できないため、Unicode 版 (pi_text) と
 Streamlit の数式表示用の LaTeX 版 (pi_latex) を用意している。
 """
 
 from __future__ import annotations
 
+import math
 from fractions import Fraction
 
 MINUS = "−"  # Unicode マイナス（グラフ上で見やすい）
@@ -20,8 +23,15 @@ def to_fraction(value) -> Fraction:
 
 
 # ---------- π を単位とする角度 ----------
+def _dec(v: float, digits: int = 4) -> str:
+    s = f"{v:.{digits}g}"
+    return s.replace("-", MINUS)
+
+
 def pi_text(q) -> str:
-    """π の倍数を Unicode 文字列にする。 1/2 -> 'π/2', -3/2 -> '−3π/2'"""
+    """π の倍数を Unicode 文字列にする。 1/2 -> 'π/2', -3/2 -> '−3π/2'（float なら小数のラジアン）"""
+    if isinstance(q, float):
+        return _dec(q * math.pi, 3)
     q = to_fraction(q)
     if q == 0:
         return "0"
@@ -32,7 +42,9 @@ def pi_text(q) -> str:
 
 
 def pi_latex(q) -> str:
-    """π の倍数を LaTeX にする。 1/2 -> '\\frac{\\pi}{2}', -3 -> '-3\\pi'"""
+    """π の倍数を LaTeX にする。 1/2 -> '\\frac{\\pi}{2}', -3 -> '-3\\pi'（float なら小数のラジアン）"""
+    if isinstance(q, float):
+        return f"{q * math.pi:.3g}"
     q = to_fraction(q)
     if q == 0:
         return "0"
@@ -44,6 +56,8 @@ def pi_latex(q) -> str:
 
 def deg_text(q) -> str:
     """π の倍数を度数法の文字列にする。 1/2 -> '90°'"""
+    if isinstance(q, float):
+        return _dec(q * 180) + "°"
     deg = to_fraction(q) * 180
     if deg.denominator == 1:
         s = str(abs(deg.numerator))
@@ -53,6 +67,8 @@ def deg_text(q) -> str:
 
 
 def deg_latex(q) -> str:
+    if isinstance(q, float):
+        return rf"{q * 180:.4g}^\circ"
     deg = to_fraction(q) * 180
     s = str(deg.numerator) if deg.denominator == 1 else f"{float(deg):g}"
     return rf"{s}^\circ"
