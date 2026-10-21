@@ -8,6 +8,15 @@ st.markdown(
     "左のメニュー、または下のリンクから各ページへ移動できます。"
 )
 
+with st.container(border=True):
+    st.subheader("📚 三角比・三角関数の公式まとめ（基礎知識）")
+    st.markdown(
+        "有名角の度数法・弧度法と三角関数の値、ラジアンと扇形、相互関係、正弦定理・余弦定理、"
+        "加法定理と 2 倍角・3 倍角・半角・合成・積和・和積の公式を 1 ページに。単位円・扇形・三角形の図と、公式を数値で確かめる機能つき。"
+    )
+    st.caption("関連: 後期課題1〜3・7・8")
+    st.page_link("views/basics.py", label="ページを開く", icon="➡️")
+
 c1, c2 = st.columns(2)
 with c1:
     with st.container(border=True):
