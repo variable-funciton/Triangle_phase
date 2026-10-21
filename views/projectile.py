@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.projectile import G, flight_time, max_height, position, range_, trajectory, velocity
+from explain.projectile import render as render_explain
 
 ANGLE_COLORS = {15: "#9467bd", 30: "#1f77b4", 45: "#d62728", 60: "#2ca02c", 75: "#ff7f0e"}
 
@@ -114,7 +115,7 @@ else:
     st.info(f"同じ初速度 {v0} m/s でも、45° で投げれば {L45:.2f} m まで飛びます（今の角度では {L / L45:.1%}）。"
             f"　また、{90 - theta}° で投げても飛距離は同じ {L:.2f} m です。")
 
-tab1, tab2, tab3, tab4 = st.tabs(["① 投げてみる", "② 角度を変えて比べる", "③ 飛距離のグラフ", "④ 式で確かめる"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["① 投げてみる", "② 角度を変えて比べる", "③ 飛距離のグラフ", "④ 式で確かめる", "⑤ 📖 詳しい解説"])
 
 # ---------------- ① 投げてみる ----------------
 with tab1:
@@ -215,3 +216,9 @@ with tab4:
             "- 砲丸投げのように **高い位置から投げる** 場合も、最適な角度は 45° より小さくなる。\n"
             "- このページは「空気抵抗なし・地面から投げる」という理想化したモデルで考えている。"
         )
+
+# =====================================================================
+# ⑤ 詳しい解説
+# =====================================================================
+with tab5:
+    render_explain(v0, theta)

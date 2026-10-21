@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
+from explain.spring import render as render_explain
 from utils.oscillation import (G, damped_envelope, damped_motion, damped_turning_points, free_motion,
                                friction_motion, friction_turning_points, omega, period, wave_displacement)
 
@@ -93,7 +94,7 @@ else:
     motion = lambda t: damped_motion(x0, k, m, gamma, t)
     d = 0.0
 
-tab1, tab2, tab3, tab4 = st.tabs(["① ばねの振動", "② 振幅の減り方（数列で見る）", "③ 横波と縦波", "④ 式で確かめる"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["① ばねの振動", "② 振幅の減り方（数列で見る）", "③ 横波と縦波", "④ 式で確かめる", "⑤ 📖 詳しい解説"])
 
 # =====================================================================
 # ① ばねの振動
@@ -339,3 +340,9 @@ with tab4:
         r"- 波形は 1 周期 $T$ の間に 1 波長 $\lambda$ 進むので、波の速さは $v = \dfrac{\lambda}{T} = f\lambda$。\n"
         r"- 「一般形」のページの $y = A\sin B(x - t_0)$ で、ずらす量 $t_0$ が時間とともに増えていくのが進む波。"
     )
+
+# =====================================================================
+# ⑤ 詳しい解説
+# =====================================================================
+with tab5:
+    render_explain(m, k, x0, model, mu, gamma)

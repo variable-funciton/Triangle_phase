@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.monkey import G, HIT_RADIUS, Shot, aim_angle_deg, hit_height, v_min
+from explain.monkey import render as render_explain
 
 C_A, C_B, C_GHOST, C_FALL = "#1f77b4", "#d62728", "#9aa0a6", "#2ca02c"
 
@@ -144,7 +145,7 @@ m[1].metric("O から (a, b) までの距離", f"{math.hypot(a, b):.2f} m")
 m[2].metric("ぶつかるまでの時間 t*", f"{math.hypot(a, b) / v0:.3f} 秒", help="t* = √(a² + b²) / v₀")
 m[3].metric("ぶつかる高さ", f"{hit_height(a, b, v0):.2f} m" if hit_height(a, b, v0) >= 0 else "地面より下（外れ）")
 
-tab1, tab2, tab3, tab4 = st.tabs(["① 発射してみる", "② 当たる条件", "③ 条件を崩すと？", "④ 式で確かめる"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["① 発射してみる", "② 当たる条件", "③ 条件を崩すと？", "④ 式で確かめる", "⑤ 📖 詳しい解説"])
 
 # ---------------- ① 発射してみる ----------------
 with tab1:
@@ -234,3 +235,9 @@ with tab4:
             "**A は B に向かってまっすぐ等速で進んでくる** ように見えます。"
             "最初に B を狙って投げているので、必ず B に届きます（ただし、それまでに地面に着かなければ）。"
         )
+
+# =====================================================================
+# ⑤ 詳しい解説
+# =====================================================================
+with tab5:
+    render_explain(a, b, v0)
