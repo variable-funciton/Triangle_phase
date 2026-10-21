@@ -28,6 +28,7 @@ PAGES = {
         st.Page("views/projectile.py", title="斜方投射（45° で最も遠くへ）", icon="🏀", url_path="projectile"),
         st.Page("views/fourier.py", title="三角関数の足し合わせ（フーリエ級数）", icon="🎼", url_path="fourier"),
         st.Page("views/monkey.py", title="モンキーハンティング", icon="🐒", url_path="monkey"),
+        st.Page("views/spring.py", title="バネの単振動と波", icon="〰️", url_path="spring"),
     ],
 }
 

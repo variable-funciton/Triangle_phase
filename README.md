@@ -14,6 +14,7 @@ Streamlit Community Cloud で公開する、三角関数の学習用 Web アプ�
 | 三角関数の足し合わせ（フーリエ級数） | 矩形波・のこぎり波・三角波・半波／全波整流を sin, cos の和で近づける。項を足していくアニメーション、スペクトル、自分で係数を決めて波を作る（微分積分なしの入門） | 後期課題4・5（応用） |
 | 斜方投射 | 初速度と角度を変えて投げるアニメーション、5 つの角度の同時比較、飛距離 L(θ) のグラフ、2倍角の公式で 45° が最大になることの説明 | 後期課題7（応用） |
 | モンキーハンティング | (a, b) を狙って投げると同時に B を自由落下させるアニメーション、½gt² のずれの可視化、当たる条件 v₀ > √(g(a²+b²)/2b) のグラフ、狙いのずれ・放す時刻のずれで外れる様子 | 後期課題1〜3（応用） |
+| バネの単振動と波 | 等速円運動の影としての単振動、動摩擦（振幅が等差数列で減り止まる）・速さに比例する抵抗（等比数列）のアニメーション、横波・縦波の伝わり方、縦波の横波表示 | 後期課題1〜5・9・10（応用） |
 
 ## ファイル構成
 
@@ -29,6 +30,7 @@ views/                各ページ
   fourier.py          三角関数の足し合わせ（フーリエ級数）
   projectile.py       斜方投射
   monkey.py           モンキーハンティング
+  spring.py           バネの単振動と波
 utils/                共通部品
   angles.py           π の分数・度数の表示（π/2, −3π/4, 90° など）
   trig.py             y = A f(B(x − t)) + β の計算（Streamlit に依存しない）
@@ -38,6 +40,7 @@ utils/                共通部品
   fourier.py          フーリエ級数の係数と部分和
   projectile.py       斜方投射の計算（滞空時間・最高点・飛距離）
   monkey.py           モンキーハンティングの計算（命中判定・最小の初速度）
+  oscillation.py      単振動（摩擦・抵抗あり）と波の計算
   plotting.py         Plotly 描画の共通部品
 tests/test_utils.py   計算部分のテスト
 requirements.txt / packages.txt（日本語フォント、PDF 保存用の Chromium）
@@ -60,6 +63,7 @@ python -m tests.test_projectile  # 斜方投射のテスト
 python -m tests.test_monkey      # モンキーハンティングのテスト
 python -m tests.test_tent        # テントマップのテスト
 python -m tests.test_fourier     # フーリエ級数のテスト
+python -m tests.test_oscillation # 単振動と波のテスト
 ```
 
 ## ページの追加方法
