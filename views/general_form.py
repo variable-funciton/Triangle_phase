@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.angles import angle_latex, angle_text, frac_latex, frac_text
+from utils.angles import angle_latex, angle_text, frac_latex, frac_text, pi_latex
 from utils.plotting import (
     COLORS, add_period_band, add_range_lines, add_shift_arrows, curve, key_marker,
     style_axes, x_grid, x_range_pi, y_limit,
@@ -18,7 +18,7 @@ A_OPTIONS = [F(-3), F(-2), F(-3, 2), F(-1), F(-1, 2), F(1, 2), F(1), F(3, 2), F(
 B_OPTIONS = [F(1, 3), F(1, 2), F(2, 3), F(1), F(3, 2), F(2), F(3), F(4)]
 T_OPTIONS = [F(k, 12) for k in range(-24, 25)]          # −2π 〜 2π を π/12 刻み
 BETA_OPTIONS = [F(k, 2) for k in range(-4, 5)]           # −2 〜 2 を 1/2 刻み
-DEFAULTS = {"gf_A": F(1), "gf_B": F(1), "gf_t": F(0), "gf_beta": F(0)}
+DEFAULTS = {"gf_A": F(1), "gf_B": F(1), "gf_t": F(0), "gf_t_rad": 0.0, "gf_t_deg": 0, "gf_beta": F(0)}
 
 for key, val in DEFAULTS.items():
     st.session_state.setdefault(key, val)
@@ -29,31 +29,57 @@ def reset_params():
         st.session_state[key] = val
 
 
-# ---------------- サイドバー ----------------
-st.sidebar.header("パラメータ")
-func = st.sidebar.radio("基本の関数", ["sin", "cos"], horizontal=True, format_func=lambda s: f"{s} x")
-unit = st.sidebar.radio(
-    "角度の単位", ["rad", "deg"], horizontal=True,
-    format_func=lambda u: "弧度法 (rad)" if u == "rad" else "度数法 (°)",
-)
-A = st.sidebar.select_slider("A（y 方向の倍率・振幅）", options=A_OPTIONS, key="gf_A", format_func=frac_text)
-B = st.sidebar.select_slider("B（x 方向の倍率 → 周期）", options=B_OPTIONS, key="gf_B", format_func=frac_text)
-t = st.sidebar.select_slider(
-    "t（x 方向の平行移動）", options=T_OPTIONS, key="gf_t", format_func=lambda q: angle_text(q, unit)
-)
-beta = st.sidebar.select_slider("β（y 方向の平行移動）", options=BETA_OPTIONS, key="gf_beta", format_func=frac_text)
-st.sidebar.button("初期値に戻す", on_click=reset_params)
+def symbolic_latex(wv: Wave, param: str) -> str:
+    """アニメーションで動かすパラメータだけ文字（A, B, t, β）のまま残した式"""
+    fn = rf"\{wv.func}"
+    As = "A" if param == "A" else ("" if wv.A == 1 else "-" if wv.A == -1 else frac_latex(wv.A))
+    Bs = "B" if param == "B" else ("" if wv.B == 1 else frac_latex(wv.B))
+    if param == "t":
+        xs = "x - t"
+    elif wv.t == 0:
+        xs = "x"
+    else:
+        xs = "x" + (" - " if wv.t > 0 else " + ") + pi_latex(abs(wv.t))
+    inner = (f" {Bs}x" if Bs else " x") if xs == "x" else (f" {Bs}" if Bs else "") + rf"\left({xs}\right)"
+    cs = r" + \beta" if param == "beta" else (
+        "" if wv.beta == 0 else (" + " if wv.beta > 0 else " - ") + frac_latex(abs(wv.beta)))
+    return rf"y = {As}{fn}{inner}{cs}"
 
-w = Wave(func, A, B, t, beta)
-base = Wave(func)
 
-# ---------------- 数式と特徴量 ----------------
 st.title("三角関数の一般形と平行移動")
 st.markdown(
     r"$y = A\sin B(x - t) + \beta$ の 4 つのパラメータを動かして、"
     r"**振幅・周期・平行移動** がグラフにどう表れるか確かめよう。"
 )
 
+# ---------------- パラメータ（グラフのすぐ上に置く。スマートフォンでも見えるように） ----------------
+with st.container(border=True):
+    r1 = st.columns([2, 2, 3, 1.4])
+    func = r1[0].radio("基本の関数", ["sin", "cos"], horizontal=True, format_func=lambda s: f"{s} x", key="gf_func")
+    unit = r1[1].radio("角度の単位", ["rad", "deg"], horizontal=True, key="gf_unit",
+                       format_func=lambda u: "弧度法" if u == "rad" else "度数法")
+    t_mode = r1[2].radio("t の入れ方", ["pi", "dec"], horizontal=True, key="gf_tmode",
+                         format_func=lambda m: ("π の倍数（π/12 きざみ）" if unit == "rad" else "15° きざみ")
+                         if m == "pi" else ("小数（ラジアン）" if unit == "rad" else "1° きざみ"))
+    r1[3].button("初期値に戻す", on_click=reset_params)
+    r2 = st.columns(4)
+    A = r2[0].select_slider("A（y 方向の倍率・振幅）", options=A_OPTIONS, key="gf_A", format_func=frac_text)
+    B = r2[1].select_slider("B（x 方向の倍率 → 周期）", options=B_OPTIONS, key="gf_B", format_func=frac_text)
+    if t_mode == "pi":
+        t = r2[2].select_slider("t（x 方向の平行移動）", options=T_OPTIONS, key="gf_t",
+                                format_func=lambda q: angle_text(q, unit))
+    elif unit == "rad":
+        t_rad = r2[2].slider("t（x 方向の平行移動）[rad]", -6.28, 6.28, step=0.01, key="gf_t_rad")
+        t = t_rad / np.pi                                   # π 単位の小数
+    else:
+        t_deg = r2[2].slider("t（x 方向の平行移動）[°]", -360, 360, step=1, key="gf_t_deg")
+        t = F(t_deg, 180)                                   # 度数は π の分数で正確に表せる
+    beta = r2[3].select_slider("β（y 方向の平行移動）", options=BETA_OPTIONS, key="gf_beta", format_func=frac_text)
+
+w = Wave(func, A, B, t, beta)
+base = Wave(func)
+
+# ---------------- 数式と特徴量 ----------------
 formula = w.latex()
 if B != 1 and t != 0:
     formula += r"\;=\; " + w.latex("expanded")[4:]
@@ -95,6 +121,8 @@ with tab1:
     if show_range:
         add_range_lines(fig, w)
     style_axes(fig, lo, hi, y_limit([w, base]), unit)
+    fig.update_layout(title=dict(text=w.text(), x=0.5, xanchor="center", font=dict(size=20, color=COLORS["wave"])),
+                      margin=dict(t=90))
     st.plotly_chart(fig, key="compare_chart")
 
     with st.expander("キーポイント（1周期を4等分した点）の対応表"):
@@ -149,6 +177,8 @@ with tab2:
         add_shift_arrows(fig2, prev.key_points(), cur.key_points())
     fig2.add_trace(key_marker(cur.key_points(), "現在の点", COLORS["key"], unit))
     style_axes(fig2, lo, hi, y_limit([s[0] for s in steps]), unit)
+    fig2.update_layout(title=dict(text=f"{'①②③④⑤'[step]}  {cur.text()}", x=0.5, xanchor="center",
+                                  font=dict(size=20, color=COLORS["steps"][step])), margin=dict(t=90))
     st.plotly_chart(fig2, key="steps_chart")
 
     for i, (wi, desc, changed) in enumerate(steps):
@@ -182,8 +212,10 @@ with tab2:
 # ③ アニメーション（ブラウザ側で再生するのでサーバー負荷が小さい）
 # =====================================================================
 with tab3:
+    t_values = ([k * 0.1 / np.pi for k in range(-63, 64)] if (t_mode == "dec" and unit == "rad")
+                else [F(k, 24) for k in range(-48, 49)])
     PARAMS = {
-        "t": ("t（x 方向の平行移動）", [F(k, 24) for k in range(-48, 49)], lambda q: angle_text(q, unit)),
+        "t": ("t（x 方向の平行移動）", t_values, lambda q: angle_text(q, unit)),
         "A": ("A（振幅）", [F(k, 4) for k in range(-12, 13)], frac_text),
         "B": ("B（周期）", [F(k, 8) for k in range(2, 33)], frac_text),
         "beta": ("β（y 方向の平行移動）", [F(k, 4) for k in range(-8, 9)], frac_text),
@@ -205,7 +237,10 @@ with tab3:
     x = x_grid(lo, hi, n=600)
     ylim = y_limit(waves)
     current = {"A": A, "B": B, "t": t, "beta": beta}[param]
-    init = min(range(len(values)), key=lambda i: abs(values[i] - current))
+    init = min(range(len(values)), key=lambda i: abs(float(values[i]) - float(current)))
+
+    st.markdown("動かしているパラメータを文字のまま残した式：")
+    st.latex(symbolic_latex(w, param))
 
     def wave_traces(wv):
         kp = wv.key_points()
@@ -215,13 +250,17 @@ with tab3:
                        mode="markers", name="キーポイント",
                        marker=dict(color=COLORS["key"], size=10, line=dict(color="white", width=1)),
                        hoverinfo="skip"),
+            # そのコマの式（パラメータに合わせて変わる）
+            go.Scatter(x=[lo * np.pi + 0.05 * (hi - lo) * np.pi], y=[ylim * 0.86], mode="text",
+                       text=[wv.text()], textposition="middle right", showlegend=False, hoverinfo="skip",
+                       textfont=dict(size=20, color=COLORS["wave"])),
         ]
 
     base_trace = curve(x, base.y(x), f"y = {func} x", COLORS["base"], dash="dash", width=2,
                        opacity=1.0 if anim_base else 0.0, showlegend=anim_base)
     fig4 = go.Figure(
         data=[base_trace] + wave_traces(waves[init]),
-        frames=[go.Frame(name=str(i), data=wave_traces(wv), traces=[1, 2]) for i, wv in enumerate(waves)],
+        frames=[go.Frame(name=str(i), data=wave_traces(wv), traces=[1, 2, 3]) for i, wv in enumerate(waves)],
     )
     anim_opts = dict(frame=dict(duration=duration, redraw=False), transition=dict(duration=0), mode="immediate")
     fig4.update_layout(
