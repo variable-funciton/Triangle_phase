@@ -132,8 +132,97 @@
       hovertemplate: "(%{x:.3f}, %{y:.3f})<extra>%{fullData.name}</extra>" }, extra || {});
   }
 
+
+  /**
+   * パラメータのスライダーをまとめて作る。
+   *   defs: [{key, label, sub, min, max, step, btn, fmt(v) → 表示文字列, snap(v) → v}]
+   *   S[key] に値を入れ、onChange(key) を呼ぶ。戻り値 {sync()}（S の値をスライダーに反映）
+   */
+  function params(container, defs, S, onChange) {
+    var root = typeof container === "string" ? $(container) : container;
+    root.innerHTML = defs.map(function (d) {
+      var id = "p-" + d.key;
+      return '<div class="prm"><div class="top"><span class="name">' + d.label + (d.sub ? "<small>" + d.sub + "</small>" : "") +
+        '</span><span class="val" id="v-' + d.key + '"></span></div><div class="row">' +
+        '<button class="step-btn" data-for="' + id + '" data-d="-1">−</button>' +
+        '<input type="range" id="' + id + '" min="' + d.min + '" max="' + d.max + '" step="' + (d.step || 0.01) + '">' +
+        '<button class="step-btn" data-for="' + id + '" data-d="1">＋</button></div></div>';
+    }).join("");
+    function show(d) { var el = $("v-" + d.key); if (el) el.textContent = d.fmt ? d.fmt(S[d.key]) : String(S[d.key]); }
+    defs.forEach(function (d) {
+      bindRange("p-" + d.key, function (v) {
+        if (d.snap) v = d.snap(v);
+        S[d.key] = v; show(d); onChange(d.key);
+      }, d.btn);
+    });
+    return {
+      sync: function () { defs.forEach(function (d) { var el = $("p-" + d.key); if (el) el.value = S[d.key]; show(d); }); },
+      show: function () { defs.forEach(show); },
+    };
+  }
+
+  /** π/12 などの倍数の近くなら、その倍数にぴったりそろえる関数を返す */
+  function snapTo(q, tol) { return function (v) { var r = Math.round(v / q) * q; return Math.abs(v - r) < (tol || 0.006) ? r : v; }; }
+
+  /** チェックボックスを作る。defs: [{key, label}]。S.show[key] と結ぶ */
+  function checks(container, defs, S, onChange) {
+    var root = typeof container === "string" ? $(container) : container;
+    root.innerHTML = defs.map(function (d) { return '<label><input type="checkbox" data-chk="' + d.key + '"> ' + d.label + "</label>"; }).join("");
+    root.querySelectorAll("[data-chk]").forEach(function (c) {
+      c.checked = !!S.show[c.dataset.chk];
+      c.addEventListener("change", function () { S.show[c.dataset.chk] = c.checked; onChange(c.dataset.chk); });
+    });
+  }
+
+  /** メトリクス（小さいカード）を並べる。items: [[ラベル, 値(HTML)]] */
+  function metrics(container, items) {
+    var root = typeof container === "string" ? $(container) : container;
+    root.innerHTML = items.map(function (m) { return '<div class="metric"><div class="ml">' + m[0] + '</div><div class="mv">' + m[1] + "</div></div>"; }).join("");
+  }
+
+  /** タブ（.tabs の button[data-tab]）と、id="tab-<名前>" の中身を切りかえる */
+  function tabs(S, key, onChange) {
+    function sync() {
+      document.querySelectorAll(".tabs button[data-tab]").forEach(function (b) {
+        var on = b.dataset.tab === S[key];
+        b.classList.toggle("on", on);
+        var pane = $("tab-" + b.dataset.tab); if (pane) pane.hidden = !on;
+      });
+    }
+    document.querySelectorAll(".tabs button[data-tab]").forEach(function (b) {
+      b.addEventListener("click", function () { S[key] = b.dataset.tab; sync(); onChange(); });
+    });
+    sync();
+    return sync;
+  }
+
+  /** 円の点列（中心 cx, cy、半径 r） */
+  function circle(cx, cy, r, n) {
+    n = n || 120; var xs = [], ys = [];
+    for (var i = 0; i <= n; i++) { var a = 2 * Math.PI * i / n; xs.push(cx + r * Math.cos(a)); ys.push(cy + r * Math.sin(a)); }
+    return { x: xs, y: ys };
+  }
+
+  /**
+   * 矢印（データ座標）from → to を L.annotations に追加。text があれば矢印の先に書く。
+   * （Plotly の注釈の文字は矢印の根元に付くので、文字は別の注釈にする）
+   */
+  function arrow(L, from, to, color, text, opt) {
+    opt = opt || {};
+    L.annotations.push({ x: to[0], y: to[1], ax: from[0], ay: from[1], xref: opt.xref || "x", yref: opt.yref || "y",
+      axref: opt.xref || "x", ayref: opt.yref || "y", showarrow: true, arrowhead: 2, arrowsize: 1.1, arrowwidth: opt.width || 2.2,
+      arrowcolor: color, text: "" });
+    if (text) {
+      var dx = to[0] - from[0], dy = to[1] - from[1], len = Math.hypot(dx, dy) || 1;
+      L.annotations.push({ x: to[0], y: to[1], xref: opt.xref || "x", yref: opt.yref || "y", text: text, showarrow: false,
+        xshift: 14 * dx / len, yshift: 12 * dy / len, xanchor: dx > 0.2 * len ? "left" : dx < -0.2 * len ? "right" : "center",
+        yanchor: dy > 0.2 * len ? "bottom" : dy < -0.2 * len ? "top" : "middle", font: { color: color, size: opt.size || 13 } });
+    }
+  }
+
   root.UI = {
     $: $, ready: ready, tex: tex, store: store, bindSegs: bindSegs, syncSegs: syncSegs, bindRange: bindRange,
     Player: Player, throttle: throttle, axis: axis, layout: layout, CONFIG: CONFIG, lineTrace: lineTrace, pointTrace: pointTrace,
+    params: params, snapTo: snapTo, checks: checks, metrics: metrics, tabs: tabs, circle: circle, arrow: arrow,
   };
 })(this);

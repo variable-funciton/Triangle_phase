@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+#plot-day, #plot-temp { height: 430px; }
+@media (max-width: 720px) { #plot-day, #plot-temp { height: 360px; } }
+.score { font-size: 22px; font-weight: 700; color: var(--key); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="temp">① 気温の 1 年の変化に sin を合わせる</button>
+    <button data-tab="day">② 昼の長さの 1 年の変化</button>
+  </div>
+
+  <div id="tab-temp">
+    <div class="box">
+      <h3>都市と式のパラメータ　<span id="gen-t"></span></h3>
+      <div class="settings" style="margin-bottom:8px">
+        <div class="seg" data-key="city"><button data-v="sapporo">札幌</button><button data-v="tokyo">東京</button><button data-v="naha">那覇</button></div>
+        <button class="btn" id="fit">いちばん合う値にする（答え）</button>
+        <button class="btn" id="reset-t">はじめから</button>
+      </div>
+      <div class="params three" id="params-t"></div>
+    </div>
+    <div class="formula"><div class="main" id="formula-t"></div></div>
+    <div class="plot" id="plot-temp"></div>
+    <div class="metrics" id="metrics-t"></div>
+    <div class="info-box" id="msg-t"></div>
+  </div>
+
+  <div id="tab-day" hidden>
+    <div class="box">
+      <h3>緯度と日付</h3>
+      <div class="settings" style="margin-bottom:8px">
+        <span class="hint">緯度のプリセット：</span>
+        <div class="btns" id="lat-presets"></div>
+        <label class="checks"><input type="checkbox" id="chk-approx"> sin の式で近似したグラフも表示</label>
+      </div>
+      <div class="params" id="params-d"></div>
+    </div>
+    <div class="formula"><div class="main" id="formula-d"></div></div>
+    <div class="plot" id="plot-day"></div>
+    <div class="metrics" id="metrics-d"></div>
+    <div class="info-box" id="msg-d"></div>
+  </div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var S = UI.store("seasons_v1", { tab: "temp", city: "tokyo", A: 5, alpha: 3, beta: 10, lat: 35.69, N: 172, approx: true });
+  var LATS = [["赤道 0°", 0], ["那覇 26.2°", 26.21], ["東京 35.7°", 35.69], ["札幌 43.1°", 43.06], ["北緯 60°", 60], ["北極圏 66.6°", 66.6]];
+
+  var PT = UI.params("params-t", [
+    { key: "A", label: "A", sub: "振幅（夏と冬の差の半分）[℃]", min: 0, max: 20, step: 0.1, btn: 0.5, fmt: function (v) { return TU.fmtNum(v, 1); } },
+    { key: "alpha", label: "α", sub: "平行移動（何月にずらすか）", min: 0, max: 12, step: 0.05, btn: 0.5, fmt: function (v) { return TU.fmtNum(v, 2) + " 月"; } },
+    { key: "beta", label: "β", sub: "1 年の平均 [℃]", min: -5, max: 30, step: 0.1, btn: 0.5, fmt: function (v) { return TU.fmtNum(v, 1); } },
+  ], S, function () { redraw(); });
+  var PD = UI.params("params-d", [
+    { key: "lat", label: "緯度", sub: "北緯 [°]", min: 0, max: 70, step: 0.1, btn: 1, fmt: function (v) { return TU.fmtNum(v, 1) + "°"; } },
+    { key: "N", label: "日付", sub: "1 月 1 日からの日数", min: 1, max: 365, step: 1, fmt: function (v) { return SE.dateText(v); } },
+  ], S, function () { redraw(); });
+
+  function drawTemp() {
+    var c = SE.TEMPS[S.city], p = { A: S.A, alpha: S.alpha, beta: S.beta }, best = SE.fit(c.data);
+    $("gen-t").innerHTML = tex("T = A\\sin\\frac{2\\pi}{12}(m - \\alpha) + \\beta");
+    $("formula-t").innerHTML = tex("T = " + TU.fmtNum(S.A, 1) + "\\sin\\frac{2\\pi}{12}\\left(m - " + TU.fmtNum(S.alpha, 2) + "\\right) " + (S.beta < 0 ? "- " : "+ ") + TU.fmtNum(Math.abs(S.beta), 1), true);
+    var ms = TU.linspace(0.5, 12.5, 300);
+    var data = [
+      UI.lineTrace(ms, ms.map(function (m) { return SE.model(p, m); }), "あなたの式", "#1f77b4", { width: 2.8 }),
+      UI.pointTrace([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], c.data, c.name + " の平年値", "#d62728", 11,
+        { hovertemplate: "%{x} 月：%{y} ℃<extra></extra>" }),
+    ];
+    var lo = Math.min.apply(null, c.data) - 6, hi = Math.max.apply(null, c.data) + 6;
+    var L = UI.layout({ height: $("plot-temp").clientHeight || 430,
+      xaxis: UI.axis({ range: [0.5, 12.5], dtick: 1, zeroline: false, title: { text: "月 m" } }),
+      yaxis: UI.axis({ range: [lo, hi], title: { text: "月平均気温 T [℃]" } }) });
+    L.shapes.push({ type: "line", x0: 0.5, x1: 12.5, y0: S.beta, y1: S.beta, line: { color: "#ff7f0e", width: 1, dash: "dash" } });
+    Plotly.react("plot-temp", data, L, UI.CONFIG);
+    var e = SE.rms(p, c.data);
+    UI.metrics("metrics-t", [
+      ["ずれの大きさ（平均）", '<span class="score">' + TU.fmtNum(e, 2) + " ℃</span>"],
+      ["いちばん暑い月（式）", TU.fmtNum(((S.alpha + 3 - 1) % 12) + 1, 1) + " 月ごろ"],
+      ["いちばん寒い月（式）", TU.fmtNum(((S.alpha + 9 - 1) % 12) + 1, 1) + " 月ごろ"],
+      ["周期", "12 か月"],
+    ]);
+    $("msg-t").innerHTML = e < SE.rms(best, c.data) + 0.05
+      ? "🎉 ほぼいちばん合う式になりました。答え：" + tex("A \\approx " + TU.fmtNum(best.A, 1) + ",\\ \\alpha \\approx " + TU.fmtNum(best.alpha, 2) + ",\\ \\beta \\approx " + TU.fmtNum(best.beta, 1))
+        + "<br>いちばん暑いのは " + tex("\\alpha + 3") + " 月ごろ（7 月下旬〜8 月上旬）。夏至（6 月下旬）より 1 か月ほど遅れます。地面や海が温まるのに時間がかかるからです。"
+      : "赤い点（実際の平年値）に青い曲線が重なるように、A・α・β を動かそう。"
+        + "ヒント：β は 12 か月の平均、A は（いちばん暑い月 − いちばん寒い月）÷ 2 くらい。α は曲線が平均の線を下から上へ横切る月。";
+  }
+
+  function drawDay() {
+    var Ns = []; for (var i = 1; i <= 365; i++) Ns.push(i);
+    var L0 = SE.dayLength(S.lat, S.N), maxL = SE.dayLength(S.lat, 172), minL = SE.dayLength(S.lat, 355);
+    var A = (maxL - minL) / 2;
+    $("formula-d").innerHTML = tex("\\text{昼の長さ} \\approx 12 + " + TU.fmtNum(A, 2) + "\\sin\\frac{2\\pi}{365}(N - 81)\\ \\ [\\text{時間}]", true);
+    var data = [UI.lineTrace(Ns, Ns.map(function (N) { return SE.dayLength(S.lat, N); }), "昼の長さ（北緯 " + TU.fmtNum(S.lat, 1) + "°）", "#1f77b4", { width: 3,
+      extra: { hovertemplate: "%{x} 日目：%{y:.2f} 時間<extra></extra>" } })];
+    if (S.approx) data.push(UI.lineTrace(Ns, Ns.map(function (N) { return 12 + A * Math.sin(2 * Math.PI * (N - 81) / 365); }), "sin の式で近似", "#ff7f0e", { width: 2, dash: "dash" }));
+    data.push(UI.pointTrace([S.N], [L0], SE.dateText(S.N), "#d62728", 12));
+    var L = UI.layout({ height: $("plot-day").clientHeight || 430,
+      xaxis: UI.axis({ range: [1, 365], zeroline: false, tickvals: SE.MONTH_START.map(function (d) { return d + 1; }),
+        ticktext: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"], title: { text: "日付" } }),
+      yaxis: UI.axis({ range: [0, 24], dtick: 2, title: { text: "昼の長さ [時間]" } }) });
+    [[81, "春分"], [172, "夏至"], [266, "秋分"], [355, "冬至"]].forEach(function (d) {
+      L.shapes.push({ type: "line", x0: d[0], x1: d[0], yref: "paper", y0: 0, y1: 1, line: { color: "rgba(0,0,0,0.25)", width: 1, dash: "dot" } });
+      L.annotations.push({ x: d[0], y: 1, yref: "paper", text: d[1], showarrow: false, yanchor: "bottom", font: { size: 11, color: "#666" } });
+    });
+    L.shapes.push({ type: "line", x0: 1, x1: 365, y0: 12, y1: 12, line: { color: "rgba(0,0,0,0.3)", width: 1, dash: "dash" } });
+    Plotly.react("plot-day", data, L, UI.CONFIG);
+    function hm(h) { var m = Math.round(h * 60); return Math.floor(m / 60) + " 時間 " + (m % 60) + " 分"; }
+    UI.metrics("metrics-d", [["この日の昼の長さ", hm(L0)], ["夏至", hm(maxL)], ["冬至", hm(minL)], ["振幅（夏至 − 冬至）÷ 2", TU.fmtNum(A, 2) + " 時間"],
+      ["太陽の赤緯 δ", TU.fmtNum(SE.declination(S.N), 1) + "°"]]);
+    $("msg-d").innerHTML = "緯度が高い（北にある）ほど、夏と冬の昼の長さの差（振幅）が大きくなります。赤道では 1 年中ほぼ 12 時間、北極圏では夏に太陽が沈まない日（白夜）があります。"
+      + "<br>周期は 1 年（365 日）、春分・秋分では緯度によらず約 12 時間です。"
+      + "<span class='hint'>（ここでは太陽の中心が地平線の上にある時間を計算しています。実際の日の出〜日の入りは、大気による光の屈折などで十数分ほど長くなります。）</span>";
+  }
+
+  function draw() { if (S.tab === "temp") drawTemp(); else drawDay(); S.save(); }
+  var redraw = UI.throttle(draw);
+
+  UI.tabs(S, "tab", redraw);
+  UI.bindSegs(S, function () { UI.syncSegs(S); redraw(); });
+  $("fit").addEventListener("click", function () { var b = SE.fit(SE.TEMPS[S.city].data); S.A = Math.round(b.A * 10) / 10; S.alpha = Math.round(b.alpha * 20) / 20; S.beta = Math.round(b.beta * 10) / 10; PT.sync(); redraw(); });
+  $("reset-t").addEventListener("click", function () { S.A = 5; S.alpha = 3; S.beta = 10; PT.sync(); redraw(); });
+  $("lat-presets").innerHTML = LATS.map(function (l, i) { return '<button class="btn" data-i="' + i + '">' + l[0] + "</button>"; }).join("");
+  $("lat-presets").querySelectorAll("button").forEach(function (b) { b.addEventListener("click", function () { S.lat = LATS[Number(b.dataset.i)][1]; PD.sync(); redraw(); }); });
+  $("chk-approx").checked = S.approx;
+  $("chk-approx").addEventListener("change", function (e) { S.approx = e.target.checked; redraw(); });
+  UI.syncSegs(S); PT.sync(); PD.sync(); draw();
+})();
+</script>
+</body>
+</html>

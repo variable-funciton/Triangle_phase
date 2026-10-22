@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#mol, #tet { height: 440px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="angle">① 結合角と原子間の距離（余弦定理）</button>
+    <button data-tab="tetra">② メタンの 109.5° はどこから？（立方体で考える）</button>
+  </div>
+
+  <div id="tab-angle">
+    <div class="box">
+      <h3>分子を選ぶ／自分で動かす</h3>
+      <div class="btns" id="presets" style="margin-bottom:8px"></div>
+      <div class="params" id="params"></div>
+    </div>
+    <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+    <div class="layout">
+      <div class="plot" id="mol"></div>
+      <div><div class="metrics" id="metrics"></div><div class="info-box" id="msg"></div></div>
+    </div>
+  </div>
+
+  <div id="tab-tetra" hidden>
+    <div class="layout">
+      <div><div class="plot" id="tet"></div><div class="hint">ドラッグすると回転できます</div></div>
+      <div>
+        <div class="info-box" id="tet-msg"></div>
+        <div class="formula"><div class="sub" id="tet-formula"></div></div>
+        <div class="metrics" id="tet-metrics"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var S = UI.store("molecule_v1", { tab: "angle", a: 0.096, th: 104.5, mol: "h2o" });
+  var P = UI.params("params", [
+    { key: "th", label: "θ", sub: "結合角 [°]", min: 60, max: 180, step: 0.1, btn: 1, fmt: function (v) { return TU.fmtNum(v, 1) + "°"; } },
+    { key: "a", label: "a", sub: "結合距離 [nm]", min: 0.07, max: 0.16, step: 0.001, btn: 0.005, fmt: function (v) { return TU.fmtNum(v, 3) + " nm"; } },
+  ], S, function () { S.mol = ""; redraw(); });
+  $("presets").innerHTML = MO.MOLECULES.map(function (m, i) { return '<button class="btn" data-i="' + i + '">' + m.name + "</button>"; }).join("");
+  $("presets").querySelectorAll("button").forEach(function (b) {
+    b.addEventListener("click", function () { var m = MO.MOLECULES[Number(b.dataset.i)]; S.a = m.a; S.th = m.angle; S.mol = m.key; P.sync(); redraw(); });
+  });
+  function cur() { for (var i = 0; i < MO.MOLECULES.length; i++) if (MO.MOLECULES[i].key === S.mol) return MO.MOLECULES[i]; return null; }
+
+  function drawAngle() {
+    var m = cur(), a = S.a, th = S.th, d = MO.distance(a, th);
+    var cen = m ? m.center : "X", side = m ? m.side : "Y";
+    document.querySelectorAll("#presets button").forEach(function (b) { b.classList.toggle("on", m && MO.MOLECULES[Number(b.dataset.i)].key === m.key); });
+    $("formula").innerHTML = tex("d^2 = a^2 + a^2 - 2a\\cdot a\\cos\\theta\\quad\\Rightarrow\\quad d = \\sqrt{2a^2(1 - \\cos\\theta)} \\approx " + TU.fmtNum(d, 3) + "\\ \\text{nm}", true);
+    $("formula2").innerHTML = tex("= 2a\\sin\\frac{\\theta}{2} = 2\\times " + TU.fmtNum(a, 3) + "\\times\\sin " + TU.fmtNum(th / 2, 2) + "^\\circ");
+    // 図：中心の原子を原点、2 つの原子を左右対称に（上向きに開く）
+    var t = th * Math.PI / 180, half = t / 2, A = [-a * Math.sin(half), a * Math.cos(half)], B = [a * Math.sin(half), a * Math.cos(half)];
+    var R = 0.17, data = [];
+    var L = UI.layout({ height: $("mol").clientHeight || 440, showlegend: false, margin: { l: 10, r: 10, t: 10, b: 10 },
+      xaxis: UI.axis({ range: [-R, R], visible: false }), yaxis: UI.axis({ range: [-0.07, R * 1.1], visible: false, scaleanchor: "x" }) });
+    data.push(UI.lineTrace([A[0], 0, B[0]], [A[1], 0, B[1]], "結合", "#555", { width: 6, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([A[0], B[0]], [A[1], B[1]], "d", "#d62728", { width: 2, dash: "dash", extra: { hoverinfo: "skip" } }));
+    data.push(UI.pointTrace([0], [0], cen, "#1f77b4", 44, { text: [cen], mode: "markers+text", textfont: { color: "white", size: 16 }, hoverinfo: "skip" }));
+    data.push(UI.pointTrace([A[0], B[0]], [A[1], B[1]], side, "#ff7f0e", 30, { text: [side, side], mode: "markers+text", textfont: { color: "white", size: 14 }, hoverinfo: "skip" }));
+    // 角の弧
+    var arc = [], arcy = [];
+    for (var i = 0; i <= 40; i++) { var g = Math.PI / 2 - half + t * i / 40; arc.push(0.035 * Math.cos(g)); arcy.push(0.035 * Math.sin(g)); }
+    data.push(UI.lineTrace(arc, arcy, "θ", "#2ca02c", { width: 2, extra: { hoverinfo: "skip" } }));
+    L.annotations.push({ x: 0, y: 0.05, text: "θ = " + TU.fmtNum(th, 1) + "°", showarrow: false, font: { color: "#2ca02c", size: 14 } });
+    L.annotations.push({ x: 0, y: Math.max(A[1], 0) + 0.012, text: "d ≈ " + TU.fmtNum(d, 3) + " nm", showarrow: false, yanchor: "bottom", font: { color: "#d62728", size: 14 } });
+    L.annotations.push({ x: A[0] / 2, y: A[1] / 2, text: "a", showarrow: false, xshift: -12, font: { size: 14 } });
+    L.annotations.push({ x: 0.13, y: -0.05, text: "0.05 nm", showarrow: false, font: { size: 11 } });
+    L.shapes.push({ type: "line", x0: 0.105, x1: 0.155, y0: -0.06, y1: -0.06, line: { color: "#333", width: 2 } });
+    Plotly.react("mol", data, L, UI.CONFIG);
+    UI.metrics("metrics", [["結合角 θ", TU.fmtNum(th, 1) + "°"], ["cos θ", TU.fmtNum(Math.cos(t), 4)], ["結合距離 a", TU.fmtNum(a, 3) + " nm"],
+      [side + " と " + side + " の距離 d", TU.fmtNum(d, 3) + " nm"], ["形", m ? m.shape : "—"]]);
+    $("msg").innerHTML = (m ? "<b>" + m.name + "</b>：結合角 " + m.angle + "°、" + m.center + "−" + m.side + " の結合距離 約 " + m.a + " nm（代表的な値）。<br>" : "")
+      + "中心の原子と 2 つの原子でできる三角形は、2 辺が a、間の角が θ の二等辺三角形。余弦定理で、残りの辺（2 つの原子の距離 d）が求められます。"
+      + "<br>θ = 180° なら d = 2a（一直線）、θ = 120° なら " + tex("d = \\sqrt{3}\\,a") + "（平面三角形）。"
+      + "<br>メタン（109.5°）→ アンモニア（106.7°）→ 水（104.5°）と、結合に使われない電子の組（非共有電子対）がふえるほど角が小さくなります。"
+      + "<span class='hint'>（1 nm = 10⁻⁹ m。値は資料によって少しちがいます）</span>";
+  }
+
+  function drawTetra() {
+    var V = MO.TETRA, data = [];
+    // 立方体の辺
+    var edges = [];
+    [-1, 1].forEach(function (x) { [-1, 1].forEach(function (y) { edges.push([[x, y, -1], [x, y, 1]]); edges.push([[x, -1, y], [x, 1, y]]); edges.push([[-1, x, y], [1, x, y]]); }); });
+    edges.forEach(function (e) { data.push({ type: "scatter3d", mode: "lines", x: [e[0][0], e[1][0]], y: [e[0][1], e[1][1]], z: [e[0][2], e[1][2]], line: { color: "rgba(0,0,0,0.25)", width: 3 }, hoverinfo: "skip", showlegend: false }); });
+    // 正四面体の辺（H と H を結ぶ線 = 立方体の面の対角線）
+    for (var i = 0; i < 4; i++) for (var j = i + 1; j < 4; j++) {
+      var hl = i === 0 && j === 1;
+      data.push({ type: "scatter3d", mode: "lines", x: [V[i][0], V[j][0]], y: [V[i][1], V[j][1]], z: [V[i][2], V[j][2]],
+        line: { color: hl ? "#d62728" : "rgba(255,127,14,0.5)", width: hl ? 7 : 3, dash: hl ? "solid" : "dash" }, hoverinfo: "skip", showlegend: false });
+    }
+    // C−H の結合
+    V.forEach(function (v, k) { data.push({ type: "scatter3d", mode: "lines", x: [0, v[0]], y: [0, v[1]], z: [0, v[2]], line: { color: k < 2 ? "#2ca02c" : "#555", width: k < 2 ? 9 : 6 }, hoverinfo: "skip", showlegend: false }); });
+    data.push({ type: "scatter3d", mode: "markers+text", x: [0], y: [0], z: [0], text: ["C"], textfont: { color: "white", size: 14 }, marker: { size: 14, color: "#1f77b4" }, hoverinfo: "skip", showlegend: false });
+    data.push({ type: "scatter3d", mode: "markers+text", x: V.map(function (v) { return v[0]; }), y: V.map(function (v) { return v[1]; }), z: V.map(function (v) { return v[2]; }),
+      text: ["H", "H", "H", "H"], textfont: { color: "white", size: 12 }, marker: { size: 10, color: "#ff7f0e" }, hoverinfo: "skip", showlegend: false });
+    var ax = { range: [-1.3, 1.3], showticklabels: false, title: { text: "" }, showgrid: false, zeroline: false, showbackground: false };
+    var L = { height: $("tet").clientHeight || 440, margin: { l: 0, r: 0, t: 0, b: 0 }, paper_bgcolor: "#fff", uirevision: "keep",
+      scene: { xaxis: ax, yaxis: ax, zaxis: ax, aspectmode: "cube", camera: { eye: { x: 1.6, y: 1.2, z: 0.9 } } } };
+    Plotly.react("tet", data, L, UI.CONFIG);
+    $("tet-msg").innerHTML = "メタン CH₄ の 4 つの H は、<b>立方体の中心に C を置き、となり合わない 4 つの頂点に H を置いた形</b>（正四面体）になっています。"
+      + "<br>立方体の 1 辺を 2 とすると、"
+      + "<br>・C−H の長さ（中心から頂点）＝ 立方体の対角線の半分 ＝ " + tex("\\sqrt{1^2 + 1^2 + 1^2} = \\sqrt{3}")
+      + "<br>・H−H の長さ（赤い線）＝ 面の対角線 ＝ " + tex("\\sqrt{2^2 + 2^2} = 2\\sqrt{2}")
+      + "<br>緑の 2 本の結合と赤い線でできる三角形に余弦定理を使うと：";
+    $("tet-formula").innerHTML = tex("\\cos\\theta = \\frac{(\\sqrt{3})^2 + (\\sqrt{3})^2 - (2\\sqrt{2})^2}{2\\cdot\\sqrt{3}\\cdot\\sqrt{3}} = \\frac{3 + 3 - 8}{6} = -\\frac{1}{3}", true)
+      + tex("\\theta = \\arccos\\left(-\\frac{1}{3}\\right) \\approx " + TU.fmtNum(MO.angleBetween(V[0], V[1]), 2) + "^\\circ", true);
+    UI.metrics("tet-metrics", [["C−H（立方体の 1 辺 = 2）", "√3 ≈ 1.732"], ["H−H", "2√2 ≈ 2.828"], ["cos θ", "−1/3"], ["θ", TU.fmtNum(MO.angleBetween(V[0], V[1]), 2) + "°"]]);
+  }
+
+  function draw() { if (S.tab === "angle") drawAngle(); else drawTetra(); S.save(); }
+  var redraw = UI.throttle(draw);
+  UI.tabs(S, "tab", redraw);
+  P.sync(); draw();
+})();
+</script>
+</body>
+</html>

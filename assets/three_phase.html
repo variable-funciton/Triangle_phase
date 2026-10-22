@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr); gap: 10px; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#phasor, #wave { height: 420px; }
+@media (max-width: 720px) { #phasor, #wave { height: 340px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>三相交流</h3>
+    <div class="params" id="params"></div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn play" id="play"></button>
+      <button class="btn" id="d120">ずれを 120° にもどす</button>
+      <div class="checks" id="checks" style="margin-left:10px"></div>
+    </div>
+  </div>
+  <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+  <div class="layout">
+    <div class="plot" id="phasor"></div>
+    <div class="plot" id="wave"></div>
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="info-box" id="msg"></div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = ["#d62728", "#2ca02c", "#1f77b4"], CS = "#333", CL = "#9467bd";
+  var S = UI.store("three_phase_v1", { th: 30, d: 120, show: { sum: true, chain: true, line: false } });
+  var P = UI.params("params", [
+    { key: "th", label: "θ = ωt", sub: "回転角 [°]", min: 0, max: 720, step: 1, btn: 15, fmt: function (v) { return Math.round(v) + "°"; } },
+    { key: "d", label: "d", sub: "となりの相とのずれ [°]", min: 0, max: 180, step: 1, btn: 10, fmt: function (v) { return Math.round(v) + "°"; } },
+  ], S, function () { redraw(); });
+  UI.checks("checks", [{ key: "sum", label: "3 つの和を表示" }, { key: "chain", label: "ベクトルをつなげて和を作る" }, { key: "line", label: "線間電圧 va − vb" }], S, function () { redraw(); });
+
+  function draw() {
+    var th = S.th * Math.PI / 180, d = S.d, p = TP.phases(1, th, d), sm = p[0] + p[1] + p[2], amp = TP.sumAmplitude(1, d);
+    $("formula").innerHTML = tex("v_a + v_b + v_c = \\sin\\theta + \\sin(\\theta - " + d + "^\\circ) + \\sin(\\theta - " + (2 * d) + "^\\circ) " + (Math.abs(amp) < 1e-9 ? "= 0" : "\\approx " + TU.fmtNum(sm, 3)), true);
+    $("formula2").innerHTML = d === 120 ? tex("\\sin(\\theta - 120^\\circ) + \\sin(\\theta + 120^\\circ) = 2\\sin\\theta\\cos 120^\\circ = -\\sin\\theta\\quad(\\text{加法定理})") : tex("d = 120^\\circ\\ \\text{のときだけ、和がいつも}\\ 0\\ \\text{になる}");
+
+    // ---- 回転ベクトル ----
+    var R = 2.4, L1 = UI.layout({ height: $("phasor").clientHeight || 420, showlegend: false, margin: { l: 30, r: 6, t: 10, b: 30 },
+      xaxis: UI.axis({ range: [-R, R], showticklabels: false }), yaxis: UI.axis({ range: [-R, R], scaleanchor: "x" }) });
+    var c = UI.circle(0, 0, 1, 120), d1 = [UI.lineTrace(c.x, c.y, "", "rgba(0,0,0,0.2)", { width: 1, extra: { hoverinfo: "skip" } })];
+    var vecs = [0, 1, 2].map(function (k) { var a = th - k * d * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; });
+    var names = ["a", "b", "c"];
+    vecs.forEach(function (v, k) { UI.arrow(L1, [0, 0], v, C[k], names[k]); });
+    if (S.show.chain) {      // 矢印を先端につなげる：最後の先端が和
+      var pnt = [0, 0];
+      vecs.forEach(function (v, k) { var nx = [pnt[0] + v[0], pnt[1] + v[1]]; if (k > 0) UI.arrow(L1, pnt, nx, C[k], "", { width: 1.5 }); pnt = nx; });
+      if (Math.hypot(pnt[0], pnt[1]) > 1e-6) UI.arrow(L1, [0, 0], pnt, CS, "和", { width: 2.5 });
+      else L1.annotations.push({ x: 0, y: -R * 0.85, text: "つなげると元にもどる → 和は 0", showarrow: false, font: { size: 12 } });
+    }
+    vecs.forEach(function (v, k) { L1.shapes.push({ type: "line", x0: v[0], x1: R, y0: v[1], y1: v[1], line: { color: C[k], width: 1, dash: "dot" } }); });
+    Plotly.react("phasor", d1, L1, UI.CONFIG);
+
+    // ---- 波形 ----
+    var ths = TU.linspace(0, 720, 721), d2 = [];
+    [0, 1, 2].forEach(function (k) {
+      d2.push(UI.lineTrace(ths, ths.map(function (x) { return TP.phases(1, x * Math.PI / 180, d)[k]; }), "v" + names[k], C[k], { width: 2.4 }));
+      d2.push(UI.pointTrace([S.th], [p[k]], "", C[k], 9, { showlegend: false }));
+    });
+    if (S.show.sum) d2.push(UI.lineTrace(ths, ths.map(function (x) { return TP.sum(1, x * Math.PI / 180, d); }), "va + vb + vc", CS, { width: 3, dash: "dash" }));
+    if (S.show.line) d2.push(UI.lineTrace(ths, ths.map(function (x) { var q = TP.phases(1, x * Math.PI / 180, d); return q[0] - q[1]; }), "線間電圧 va − vb", CL, { width: 2.5 }));
+    var L2 = UI.layout({ height: $("wave").clientHeight || 420,
+      xaxis: UI.axis({ range: [0, 720], dtick: 60, title: { text: "θ = ωt [°]" } }), yaxis: UI.axis({ range: [-2.2, 2.2], dtick: 0.5, title: { text: "電圧（最大値を 1）" } }) });
+    L2.shapes.push({ type: "line", x0: S.th, x1: S.th, yref: "paper", y0: 0, y1: 1, line: { color: "#333", width: 1, dash: "dot" } });
+    Plotly.react("wave", d2, L2, UI.CONFIG);
+
+    UI.metrics("metrics", [["va", TU.fmtNum(p[0], 3)], ["vb", TU.fmtNum(p[1], 3)], ["vc", TU.fmtNum(p[2], 3)], ["和", TU.fmtNum(sm, 3)],
+      ["和の最大値", TU.fmtNum(amp, 3)], ["線間電圧の最大値", TU.fmtNum(TP.lineAmplitude(1, d), 3) + (d === 120 ? "（= √3）" : "")]]);
+    $("msg").innerHTML = "発電所の発電機は、120° ずつずらした 3 つのコイルで、120° ずつずれた 3 つの交流を同時につくります（三相交流）。"
+      + "3 つの和がいつも 0 になるので、電流がもどる線を共通にでき、<b>3 本の電線</b> で送電できます（単相を 3 組なら 6 本必要）。"
+      + "<br>回転ベクトルで見ると、120° ずつ開いた 3 本の矢印をつなげると正三角形になって元にもどる → 和は 0。d を変えるとつながらなくなり、和は 0 になりません。"
+      + "<br>2 つの相の差（線間電圧）は " + tex("\\sin\\theta - \\sin(\\theta - 120^\\circ) = \\sqrt{3}\\sin(\\theta + 30^\\circ)") + "（三角関数の合成）で、相の電圧の " + tex("\\sqrt{3}") + " 倍になります。";
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  new UI.Player($("play"), function (dt) { S.th = (S.th + dt * 90) % 720; $("p-th").value = S.th; P.show(); draw(); }, ["▶ 回す", "⏸ 停止"]);
+  $("d120").addEventListener("click", function () { S.d = 120; P.sync(); redraw(); });
+  P.sync(); draw();
+})();
+</script>
+</body>
+</html>

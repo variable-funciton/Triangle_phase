@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 12px; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#fig { height: 400px; }
+#waves { height: 400px; }
+#spec { height: 300px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>結晶と X 線</h3>
+    <div class="btns" style="margin-bottom:8px">
+      <span class="hint">結晶の例：</span>
+      <button class="btn" data-d="0.282">塩化ナトリウム NaCl（d = 0.282 nm）</button>
+      <button class="btn" data-d="0.3135">ケイ素 Si（d = 0.314 nm）</button>
+      <button class="btn" data-lam="0.154">X 線：Cu Kα 線（λ = 0.154 nm）</button>
+    </div>
+    <div class="params" id="params"></div>
+    <div class="btns" style="margin-top:8px"><button class="btn play" id="play"></button><span class="hint">θ を少しずつ大きくしていき、強め合う角度を探す</span></div>
+  </div>
+  <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+  <div class="layout">
+    <div class="plot" id="fig"></div>
+    <div class="plot" id="waves"></div>
+  </div>
+  <div class="plot" id="spec"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="info-box" id="msg"></div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { r1: "#1f77b4", r2: "#ff7f0e", extra: "#d62728", sum: "#9467bd", atom: "#555" };
+  var S = UI.store("bragg_v1", { d: 0.282, lam: 0.154, th: 10, N: 10 });
+  var P = UI.params("params", [
+    { key: "th", label: "θ", sub: "X 線と原子の面のなす角 [°]", min: 1, max: 89, step: 0.05, btn: 0.5, fmt: function (v) { return TU.fmtNum(v, 2) + "°"; } },
+    { key: "d", label: "d", sub: "原子の面の間隔 [nm]", min: 0.1, max: 0.5, step: 0.001, btn: 0.01, fmt: function (v) { return TU.fmtNum(v, 3) + " nm"; } },
+    { key: "lam", label: "λ", sub: "X 線の波長 [nm]", min: 0.05, max: 0.3, step: 0.001, btn: 0.01, fmt: function (v) { return TU.fmtNum(v, 3) + " nm"; } },
+    { key: "N", label: "N", sub: "重ね合わせる面の数（強さのグラフ）", min: 2, max: 30, step: 1, fmt: function (v) { return v + " 枚"; } },
+  ], S, function () { redraw(); });
+  document.querySelectorAll("[data-d]").forEach(function (b) { b.addEventListener("click", function () { S.d = Number(b.dataset.d); P.sync(); redraw(); }); });
+  document.querySelectorAll("[data-lam]").forEach(function (b) { b.addEventListener("click", function () { S.lam = Number(b.dataset.lam); P.sync(); redraw(); }); });
+
+  function draw() {
+    var d = S.d, lam = S.lam, th = S.th * Math.PI / 180, dl = BR.pathDiff(d, S.th), ratio = dl / lam, angs = BR.braggAngles(d, lam);
+    $("formula").innerHTML = tex("\\text{道のりの差}\\ 2d\\sin\\theta = 2\\times " + TU.fmtNum(d, 3) + "\\times\\sin " + TU.fmtNum(S.th, 2) + "^\\circ \\approx " + TU.fmtNum(dl, 4) + "\\ \\text{nm} = " + TU.fmtNum(ratio, 2) + "\\lambda", true);
+    $("formula2").innerHTML = tex("\\text{強め合う条件}\\ \\ 2d\\sin\\theta = n\\lambda\\ \\ (n = 1, 2, 3, \\dots)");
+
+    // ---- 図：原子の面と 2 本の X 線 ----
+    var W = 1.1, data = [], c = Math.cos(th), s = Math.sin(th);
+    var L = UI.layout({ height: $("fig").clientHeight || 400, showlegend: false, margin: { l: 10, r: 10, t: 10, b: 10 },
+      xaxis: UI.axis({ range: [-W, W], visible: false }), yaxis: UI.axis({ range: [-3.2 * d - 0.05, W * 0.75], visible: false, scaleanchor: "x" }) });
+    var ax = [], ay = [];
+    for (var row = 0; row < 4; row++) for (var x = -W; x <= W + 1e-9; x += 0.14) { ax.push(x); ay.push(-row * d); }
+    data.push(UI.pointTrace(ax, ay, "原子", C.atom, 7, { hoverinfo: "skip" }));
+    for (var r2 = 0; r2 < 4; r2++) L.shapes.push({ type: "line", x0: -W, x1: W, y0: -r2 * d, y1: -r2 * d, line: { color: "rgba(0,0,0,0.12)", width: 1 } });
+    var O1 = [0, 0], O2 = [0, -d], len = 0.9;
+    [[O1, C.r1], [O2, C.r2]].forEach(function (q) {
+      var O = q[0];
+      UI.arrow(L, [O[0] - len * c, O[1] + len * s], O, q[1], "", { width: 2.5 });
+      UI.arrow(L, O, [O[0] + len * c, O[1] + len * s], q[1], "", { width: 2.5 });
+    });
+    var A = [O2[0] - d * s * c, O2[1] + d * s * s], B = [O2[0] + d * s * c, O2[1] + d * s * s];
+    data.push(UI.lineTrace([A[0], O2[0], B[0]], [A[1], O2[1], B[1]], "余分な道のり", C.extra, { width: 5, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([A[0], O1[0], B[0]], [A[1], O1[1], B[1]], "", "rgba(0,0,0,0.45)", { width: 1.2, dash: "dot", extra: { hoverinfo: "skip" } }));
+    L.annotations.push({ x: (A[0] + O2[0]) / 2, y: (A[1] + O2[1]) / 2, text: "d sin θ", showarrow: false, xanchor: "right", xshift: -4, font: { color: C.extra, size: 12 } });
+    L.annotations.push({ x: (B[0] + O2[0]) / 2, y: (B[1] + O2[1]) / 2, text: "d sin θ", showarrow: false, xanchor: "left", xshift: 4, font: { color: C.extra, size: 12 } });
+    L.annotations.push({ x: -W * 0.98, y: -d / 2, text: "d", showarrow: false, xanchor: "left", font: { size: 13 } });
+    L.annotations.push({ x: -0.9 * c, y: 0.9 * s, text: "入ってくる X 線", showarrow: false, yanchor: "bottom", font: { size: 11, color: "#666" } });
+    L.annotations.push({ x: 0.9 * c, y: 0.9 * s, text: "反射した X 線", showarrow: false, yanchor: "bottom", font: { size: 11, color: "#666" } });
+    L.annotations.push({ x: 0.16 * Math.cos(th / 2), y: 0.16 * Math.sin(th / 2), text: "θ", showarrow: false, font: { size: 13 } });
+    Plotly.react("fig", data, L, UI.CONFIG);
+
+    // ---- 2 つの反射波と、その和 ----
+    var xs = TU.linspace(0, 3, 400), ph = 2 * Math.PI * ratio;
+    var w1 = xs.map(function (x) { return Math.sin(2 * Math.PI * x); }), w2 = xs.map(function (x) { return Math.sin(2 * Math.PI * x - ph); });
+    var d2 = [UI.lineTrace(xs, w1.map(function (v) { return v + 4.5; }), "上の面で反射した波", C.r1, { width: 2.2 }),
+      UI.lineTrace(xs, w2.map(function (v) { return v + 2; }), "下の面で反射した波（" + TU.fmtNum(ratio, 2) + "λ 遅れる）", C.r2, { width: 2.2 }),
+      UI.lineTrace(xs, w1.map(function (v, i) { return v + w2[i] - 2; }), "2 つの和", C.sum, { width: 3 })];
+    var L2 = UI.layout({ height: $("waves").clientHeight || 400, legend: { orientation: "h", y: -0.12, yanchor: "top", x: 0 }, margin: { l: 10, r: 10, t: 10, b: 70 },
+      xaxis: UI.axis({ range: [0, 3], showticklabels: false, zeroline: false, title: { text: "" } }), yaxis: UI.axis({ range: [-4.4, 5.8], showticklabels: false, zeroline: false, showgrid: false }) });
+    [4.5, 2, -2].forEach(function (y0) { L2.shapes.push({ type: "line", x0: 0, x1: 3, y0: y0, y1: y0, line: { color: "rgba(0,0,0,0.15)", width: 1 } }); });
+    L2.annotations.push({ x: 3, y: -4.2, text: "和の振幅 " + TU.fmtNum(BR.twoWaveAmp(d, lam, S.th), 2) + "（最大 2）", showarrow: false, xanchor: "right", font: { color: C.sum, size: 12 } });
+    Plotly.react("waves", d2, L2, UI.CONFIG);
+
+    // ---- 強さと角度 ----
+    var ths = TU.linspace(1, 89, 1200);
+    var d3 = [UI.lineTrace(ths, ths.map(function (t) { return BR.intensity(d, lam, t, S.N); }), "反射する X 線の強さ（" + S.N + " 枚の面）", C.sum, { width: 2.2 }),
+      UI.pointTrace([S.th], [BR.intensity(d, lam, S.th, S.N)], "いまの θ", C.extra, 11)];
+    var L3 = UI.layout({ height: 300, xaxis: UI.axis({ range: [0, 90], dtick: 10, title: { text: "θ [°]" } }), yaxis: UI.axis({ range: [0, 1.15], title: { text: "強さ（最大 1）" } }) });
+    angs.forEach(function (a) { L3.annotations.push({ x: a.th, y: 1, text: "n = " + a.n + "<br>" + TU.fmtNum(a.th, 1) + "°", showarrow: false, yanchor: "bottom", font: { size: 11 } }); });
+    Plotly.react("spec", d3, L3, UI.CONFIG);
+
+    UI.metrics("metrics", [["道のりの差 2d sin θ", TU.fmtNum(dl, 4) + " nm"], ["波長の何倍か", TU.fmtNum(ratio, 3)], ["2 つの波の和の振幅", TU.fmtNum(BR.twoWaveAmp(d, lam, S.th), 2)],
+      ["強め合う角度（n = 1）", angs.length ? TU.fmtNum(angs[0].th, 2) + "°" : "なし（λ > 2d）"], ["見える反射の数", angs.length + " 個"]]);
+    $("msg").innerHTML = "結晶の中では原子が規則正しく並び、間隔 d の「面」をつくっています。X 線は各面で少しずつ反射し、下の面で反射した X 線は、赤い部分 " + tex("d\\sin\\theta + d\\sin\\theta = 2d\\sin\\theta") + " だけ長い道のりを進みます。"
+      + "<br>この差が波長 λ の整数倍なら山と山がそろって <b>強め合い</b>、そうでなければ弱め合います（右の図）。面がたくさんあると、強め合う角度だけで鋭く光ります（下のグラフ）。"
+      + "<br>逆に、強く反射した角度 θ と波長 λ がわかれば " + tex("d = \\dfrac{n\\lambda}{2\\sin\\theta}") + " で原子の間隔が求められます。これが <b>X 線回折</b> で結晶の構造を調べる方法です。";
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  new UI.Player($("play"), function (dt) { S.th += dt * 3; if (S.th > 89) S.th = 1; $("p-th").value = S.th; P.show(); draw(); }, ["▶ θ を大きくしていく", "⏸ 停止"]);
+  P.sync(); draw();
+})();
+</script>
+</body>
+</html>

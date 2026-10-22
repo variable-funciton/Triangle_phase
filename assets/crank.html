@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+#mech { height: 300px; }
+#graph { height: 380px; }
+@media (max-width: 720px) { #mech { height: 220px; } #graph { height: 320px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>機構の寸法と回転</h3>
+    <div class="params three" id="params"></div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn play" id="play"></button>
+      <div class="seg" data-key="speed"><button data-v="0.5">ゆっくり</button><button data-v="1">ふつう</button><button data-v="2.5">速い</button></div>
+      <div class="checks" id="checks" style="margin-left:10px"></div>
+    </div>
+  </div>
+  <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+  <div class="plot" id="mech"></div>
+  <div class="plot" id="graph"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="info-box" id="msg"></div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { crank: "#1f77b4", rod: "#ff7f0e", piston: "#9467bd", shm: "#2ca02c", x: "#d62728" };
+  var S = UI.store("crank_v1", { r: 4, l: 12, th: 60, speed: "1", show: { shm: true, tri: true } });
+  var P = UI.params("params", [
+    { key: "r", label: "r", sub: "クランク半径 [cm]", min: 1, max: 8, step: 0.1, btn: 0.5, fmt: function (v) { return TU.fmtNum(v, 1) + " cm"; } },
+    { key: "l", label: "l", sub: "連接棒の長さ [cm]", min: 8, max: 40, step: 0.1, btn: 1, fmt: function (v) { return TU.fmtNum(v, 1) + " cm"; } },
+    { key: "th", label: "θ", sub: "クランク角 [°]", min: 0, max: 360, step: 1, btn: 15, fmt: function (v) { return Math.round(v) + "°"; } },
+  ], S, function () { if (S.l < S.r * 1.5) { S.l = S.r * 1.5; P.sync(); } redraw(); });
+  UI.checks("checks", [{ key: "shm", label: "単振動 l + r cos θ と比べる" }, { key: "tri", label: "三角形 OPQ を強調" }], S, function () { redraw(); });
+
+  function draw() {
+    var r = S.r, l = S.l, th = S.th * Math.PI / 180, x = CR.piston(r, l, th), phi = CR.rodAngle(r, l, th);
+    var Pp = [r * Math.cos(th), r * Math.sin(th)];
+    $("formula").innerHTML = tex("x = r\\cos\\theta + \\sqrt{l^2 - r^2\\sin^2\\theta} \\approx " + TU.fmtNum(x, 2) + "\\ \\text{cm}", true);
+    $("formula2").innerHTML = tex("\\text{余弦定理}\\ \\ l^2 = r^2 + x^2 - 2rx\\cos\\theta\\ \\ \\text{を}\\ x\\ \\text{について解く}");
+
+    // ---- 機構の図 ----
+    var W = r + l + 5, data = [], L = UI.layout({ height: $("mech").clientHeight || 300, showlegend: false, margin: { l: 10, r: 10, t: 10, b: 10 },
+      xaxis: UI.axis({ range: [-r - 2, W], visible: false }), yaxis: UI.axis({ range: [-r - 2, r + 2], visible: false, scaleanchor: "x" }) });
+    var cr = UI.circle(0, 0, r, 100);
+    data.push(UI.lineTrace(cr.x, cr.y, "", "rgba(31,119,180,0.35)", { width: 1.5, dash: "dot", extra: { hoverinfo: "skip" } }));
+    // シリンダー
+    var pw = 2.4, ph = 2.6;
+    L.shapes.push({ type: "line", x0: l - r - pw, x1: W, y0: ph / 2 + 0.25, y1: ph / 2 + 0.25, line: { color: "#555", width: 3 } });
+    L.shapes.push({ type: "line", x0: l - r - pw, x1: W, y0: -ph / 2 - 0.25, y1: -ph / 2 - 0.25, line: { color: "#555", width: 3 } });
+    L.shapes.push({ type: "rect", x0: x, x1: x + pw, y0: -ph / 2, y1: ph / 2, fillcolor: "rgba(148,103,189,0.35)", line: { color: C.piston, width: 2 } });
+    if (S.show.tri) L.shapes.push({ type: "path", path: "M 0 0 L " + Pp[0] + " " + Pp[1] + " L " + x + " 0 Z", fillcolor: "rgba(255,127,14,0.12)", line: { width: 0 } });
+    data.push(UI.lineTrace([0, Pp[0]], [0, Pp[1]], "クランク", C.crank, { width: 6, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([Pp[0], x], [Pp[1], 0], "連接棒", C.rod, { width: 5, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([0, x], [0, 0], "x", C.x, { width: 1.5, dash: "dash", extra: { hoverinfo: "skip" } }));
+    data.push(UI.pointTrace([0, Pp[0], x], [0, Pp[1], 0], "", "#333", 9, { hoverinfo: "skip" }));
+    L.annotations.push({ x: 0, y: 0, text: "O", showarrow: false, xshift: -10, yshift: -10 });
+    L.annotations.push({ x: Pp[0], y: Pp[1], text: "P", showarrow: false, yshift: Pp[1] >= 0 ? 12 : -12 });
+    L.annotations.push({ x: x, y: 0, text: "Q", showarrow: false, xshift: -10, yshift: -12 });
+    L.annotations.push({ x: x / 2, y: 0, text: "x", showarrow: false, yshift: -12, font: { color: C.x } });
+    L.annotations.push({ x: r * 0.55 * Math.cos(th / 2), y: r * 0.55 * Math.sin(th / 2), text: "θ", showarrow: false, font: { color: C.crank } });
+    Plotly.react("mech", data, L, UI.CONFIG);
+
+    // ---- x と θ のグラフ ----
+    var ths = TU.linspace(0, 360, 361), g = [];
+    g.push(UI.lineTrace(ths, ths.map(function (d) { return CR.piston(r, l, d * Math.PI / 180); }), "ピストンの位置 x", C.x, { width: 3 }));
+    if (S.show.shm) g.push(UI.lineTrace(ths, ths.map(function (d) { return CR.shm(r, l, d * Math.PI / 180); }), "単振動 l + r cos θ", C.shm, { width: 2, dash: "dash" }));
+    g.push(UI.pointTrace([S.th], [x], "いま", C.x, 12));
+    var L2 = UI.layout({ height: $("graph").clientHeight || 380,
+      xaxis: UI.axis({ range: [0, 360], dtick: 45, zeroline: false, title: { text: "クランク角 θ [°]" } }),
+      yaxis: UI.axis({ range: [l - r - 1, l + r + 1], zeroline: false, title: { text: "x [cm]" } }) });
+    Plotly.react("graph", g, L2, UI.CONFIG);
+
+    var dev = l - Math.sqrt(l * l - r * r);
+    UI.metrics("metrics", [
+      ["ストローク（往復の長さ）2r", TU.fmtNum(2 * r, 1) + " cm"], ["上死点 x = l + r", TU.fmtNum(l + r, 1) + " cm"], ["下死点 x = l − r", TU.fmtNum(l - r, 1) + " cm"],
+      ["連接棒の傾き φ", TU.fmtNum(phi * 180 / Math.PI, 1) + "°"], ["θ = 90° での単振動とのずれ", TU.fmtNum(dev, 2) + " cm"], ["l / r", TU.fmtNum(l / r, 2)],
+    ]);
+    $("msg").innerHTML = "クランクが回転すると、ピストンは往復運動をします（エンジンでは逆に、ピストンの往復運動を回転に変えます）。"
+      + "x のグラフは cos のグラフに似ていますが、少しゆがんでいます。l / r を大きくする（連接棒を長くする）と、緑の単振動 " + tex("l + r\\cos\\theta") + " にだんだん近づきます。"
+      + "<br>連接棒の傾き φ は正弦定理 " + tex("\\dfrac{r}{\\sin\\varphi} = \\dfrac{l}{\\sin\\theta}") + " から " + tex("\\sin\\varphi = \\dfrac{r\\sin\\theta}{l}") + " で求められます。";
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  new UI.Player($("play"), function (dt) { S.th = (S.th + dt * 120 * Number(S.speed)) % 360; $("p-th").value = S.th; P.show(); draw(); }, ["▶ クランクを回す", "⏸ 停止"]);
+  UI.bindSegs(S, function () { UI.syncSegs(S); });
+  UI.syncSegs(S); P.sync(); draw();
+})();
+</script>
+</body>
+</html>

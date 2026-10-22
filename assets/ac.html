@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr); gap: 10px; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#phasor { height: 360px; }
+#wave { height: 360px; }
+#sq { height: 260px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>交流の設定</h3>
+    <div class="settings" style="margin-bottom:8px">
+      <div class="group"><div class="gl">周波数</div><div class="seg" data-key="f"><button data-v="50">50 Hz（東日本）</button><button data-v="60">60 Hz（西日本）</button></div></div>
+      <div class="group checks" id="checks"></div>
+    </div>
+    <div class="params three" id="params"></div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn play" id="play"></button>
+      <span class="hint">アニメーションは実際の 1/100 の速さ（1 秒間に 50 回の振動は速すぎて見えないため）</span>
+    </div>
+  </div>
+  <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+  <div class="layout">
+    <div class="plot" id="phasor"></div>
+    <div class="plot" id="wave"></div>
+  </div>
+  <div class="plot" id="sq"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="info-box" id="msg"></div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { v: "#1f77b4", i: "#d62728", other: "#9aa0a6", sq: "#9467bd", rms: "#2ca02c" };
+  var S = UI.store("ac_v1", { f: "50", Ve: 100, ph: 0, t: 0, show: { cur: false, both: false, sq: true } });
+  var P = UI.params("params", [
+    { key: "Ve", label: "V", sub: "電圧の実効値 [V]", min: 10, max: 240, step: 1, btn: 10, fmt: function (v) { return v + " V"; } },
+    { key: "ph", label: "φ", sub: "電流の位相の遅れ [°]（電流を表示したとき）", min: -90, max: 90, step: 1, btn: 15, fmt: function (v) { return v + "°"; } },
+    { key: "t", label: "t", sub: "時刻 [ms]", min: 0, max: 40, step: 0.05, btn: 1, fmt: function (v) { return TU.fmtNum(v, 2) + " ms"; } },
+  ], S, function () { redraw(); });
+  UI.checks("checks", [{ key: "cur", label: "電流 i も表示" }, { key: "both", label: "50 Hz と 60 Hz を重ねる" }, { key: "sq", label: "v² と実効値" }], S, function () { redraw(); });
+
+  function draw() {
+    var f = Number(S.f), Vm = S.Ve * Math.SQRT2, T = 1000 / f, t = S.t / 1000, ph = S.ph * Math.PI / 180;
+    var Im = Vm * 0.8;     // 電流は見やすい大きさに（単位は別）
+    var vt = AC.v(Vm, f, t);
+    $("formula").innerHTML = tex("v = " + TU.fmtNum(Vm, 1) + "\\sin(2\\pi\\cdot " + f + "\\,t)\\ \\ [\\text{V}]", true);
+    $("formula2").innerHTML = tex("V_m = \\sqrt{2}\\times " + S.Ve + " \\approx " + TU.fmtNum(Vm, 1) + "\\ \\text{V},\\quad T = \\frac{1}{" + f + "}\\ \\text{s} = " + TU.fmtNum(T, 2) + "\\ \\text{ms},\\quad \\omega = 2\\pi f \\approx " + TU.fmtNum(2 * Math.PI * f, 1) + "\\ \\text{rad/s}");
+
+    // ---- 回転ベクトル（フェーザ） ----
+    var a = 2 * Math.PI * f * t, R = Vm * 1.25, d1 = [];
+    var circ = UI.circle(0, 0, Vm, 120);
+    d1.push(UI.lineTrace(circ.x, circ.y, "", "rgba(0,0,0,0.2)", { width: 1, extra: { hoverinfo: "skip" } }));
+    var L1 = UI.layout({ height: $("phasor").clientHeight || 360, showlegend: false, margin: { l: 36, r: 6, t: 24, b: 30 },
+      xaxis: UI.axis({ range: [-R, R], showticklabels: false }), yaxis: UI.axis({ range: [-R, R], scaleanchor: "x", title: { text: "v [V]" } }) });
+    UI.arrow(L1, [0, 0], [Vm * Math.cos(a), Vm * Math.sin(a)], C.v, "V");
+    if (S.show.cur) UI.arrow(L1, [0, 0], [Im * Math.cos(a - ph), Im * Math.sin(a - ph)], C.i, "I");
+    L1.shapes.push({ type: "line", x0: Vm * Math.cos(a), x1: R, y0: Vm * Math.sin(a), y1: Vm * Math.sin(a), line: { color: C.v, width: 1, dash: "dot" } });
+    L1.annotations.push({ x: 0, y: R, text: "回転するベクトル（ω で回る）", showarrow: false, yanchor: "top", font: { size: 11, color: "#666" } });
+    Plotly.react("phasor", d1, L1, UI.CONFIG);
+
+    // ---- 波形 ----
+    var ts = TU.linspace(0, 40, 800), d2 = [];
+    if (S.show.both) {
+      var f2 = f === 50 ? 60 : 50;
+      d2.push(UI.lineTrace(ts, ts.map(function (x) { return AC.v(Vm, f2, x / 1000); }), f2 + " Hz", C.other, { width: 2, dash: "dash" }));
+    }
+    d2.push(UI.lineTrace(ts, ts.map(function (x) { return AC.v(Vm, f, x / 1000); }), "電圧 v（" + f + " Hz）", C.v, { width: 2.8 }));
+    if (S.show.cur) d2.push(UI.lineTrace(ts, ts.map(function (x) { return AC.v(Im, f, x / 1000, ph); }), "電流 i（大きさは見やすく調整）", C.i, { width: 2.2 }));
+    d2.push(UI.pointTrace([S.t], [vt], "いま", C.v, 11));
+    var L2 = UI.layout({ height: $("wave").clientHeight || 360, margin: { l: 50, r: 10, t: 30, b: 40 },
+      xaxis: UI.axis({ range: [0, 40], dtick: 5, title: { text: "時刻 t [ms]" } }), yaxis: UI.axis({ range: [-R, R], title: { text: "v [V]" } }) });
+    [1, -1].forEach(function (sg) { L2.shapes.push({ type: "line", x0: 0, x1: 40, y0: sg * S.Ve, y1: sg * S.Ve, line: { color: C.rms, width: 1, dash: "dot" } }); });
+    L2.annotations.push({ x: 40, y: S.Ve, text: "実効値 " + S.Ve + " V", showarrow: false, xanchor: "right", yanchor: "bottom", font: { color: C.rms, size: 11 } });
+    for (var k = 1; k * T <= 40 + 1e-9; k++) L2.shapes.push({ type: "line", x0: k * T, x1: k * T, yref: "paper", y0: 0, y1: 1, line: { color: "rgba(0,0,0,0.15)", width: 1 } });
+    L2.annotations.push({ x: T / 2, y: R, text: "周期 T = " + TU.fmtNum(T, 2) + " ms", showarrow: false, yanchor: "top", font: { size: 11 } });
+    Plotly.react("wave", d2, L2, UI.CONFIG);
+
+    // ---- v² と平均 ----
+    $("sq").hidden = !S.show.sq;
+    if (S.show.sq) {
+      var ms = AC.meanSquare(Vm, f);
+      var d3 = [UI.lineTrace(ts, ts.map(function (x) { var y = AC.v(Vm, f, x / 1000); return y * y; }), "v²", C.sq, { width: 2.5, extra: { fill: "tozeroy", fillcolor: "rgba(148,103,189,0.12)" } })];
+      var L3 = UI.layout({ height: 260, margin: { l: 60, r: 10, t: 30, b: 40 },
+        xaxis: UI.axis({ range: [0, 40], dtick: 5, title: { text: "時刻 t [ms]" } }), yaxis: UI.axis({ range: [0, Vm * Vm * 1.1], title: { text: "v² [V²]" } }) });
+      L3.shapes.push({ type: "line", x0: 0, x1: 40, y0: ms, y1: ms, line: { color: C.rms, width: 2, dash: "dash" } });
+      L3.annotations.push({ x: 40, y: ms, text: "v² の平均 = Vm²/2 ≈ " + TU.fmtNum(ms, 0) + " → √ ≈ " + TU.fmtNum(Math.sqrt(ms), 1) + " V（実効値）", showarrow: false, xanchor: "right", yanchor: "bottom", font: { color: C.rms, size: 12 } });
+      Plotly.react("sq", d3, L3, UI.CONFIG);
+    }
+    UI.metrics("metrics", [["最大値 Vm = √2 V", TU.fmtNum(Vm, 1) + " V"], ["実効値 V", S.Ve + " V"], ["周期 T", TU.fmtNum(T, 2) + " ms"],
+      ["1 秒間の振動の回数", f + " 回"], ["いまの電圧 v", TU.fmtNum(vt, 1) + " V"]]);
+    $("msg").innerHTML = "家庭のコンセントの電圧は「100 V」ですが、これは <b>実効値</b>。実際には最大 " + tex("100\\sqrt{2} \\approx 141") + " V と −141 V の間を、1 秒間に 50 回（東日本）または 60 回（西日本）往復しています。"
+      + "<br>実効値は「同じ電力を出す直流の電圧」。" + tex("v^2 = V_m^2\\sin^2\\omega t = \\dfrac{V_m^2}{2}(1 - \\cos 2\\omega t)") + "（2 倍角の公式）なので、v² の平均は " + tex("\\dfrac{V_m^2}{2}") + "、その平方根が " + tex("\\dfrac{V_m}{\\sqrt{2}}") + " です。"
+      + (S.show.cur ? "<br>電流 i が電圧より φ だけ遅れる（φ > 0）のはコイル（モーターなど）、進む（φ < 0）のはコンデンサがあるとき。回転ベクトルでは 2 本の矢印の間の角が φ です。" : "");
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  new UI.Player($("play"), function (dt) { S.t = (S.t + dt * 10) % 40; $("p-t").value = S.t; P.show(); draw(); }, ["▶ 時間を進める", "⏸ 停止"]);
+  UI.bindSegs(S, function () { UI.syncSegs(S); redraw(); });
+  UI.syncSegs(S); P.sync(); draw();
+})();
+</script>
+</body>
+</html>

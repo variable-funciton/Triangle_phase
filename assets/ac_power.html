@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+#vi { height: 300px; }
+#pw { height: 330px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>電圧と電流のずれ</h3>
+    <div class="settings" style="margin-bottom:8px">
+      <span class="hint">つなぐもの：</span>
+      <div class="btns" id="presets"></div>
+    </div>
+    <div class="params three" id="params"></div>
+  </div>
+  <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+  <div class="plot" id="vi"></div>
+  <div class="plot" id="pw"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="info-box" id="msg"></div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { v: "#1f77b4", i: "#d62728", p: "#9467bd", P: "#2ca02c" };
+  var S = UI.store("ac_power_v1", { V: 100, I: 5, ph: 30 });
+  var PRE = [["電熱線・電球（抵抗）φ = 0°", 0], ["モーターなど φ ≈ 30°", 30], ["コイルだけ φ = 90°", 90], ["コンデンサだけ φ = −90°", -90]];
+  var P = UI.params("params", [
+    { key: "V", label: "V", sub: "電圧の実効値 [V]", min: 10, max: 200, step: 1, btn: 10, fmt: function (v) { return v + " V"; } },
+    { key: "I", label: "I", sub: "電流の実効値 [A]", min: 0.5, max: 10, step: 0.1, btn: 0.5, fmt: function (v) { return TU.fmtNum(v, 1) + " A"; } },
+    { key: "ph", label: "φ", sub: "電流の遅れ [°]", min: -90, max: 90, step: 1, btn: 15, fmt: function (v) { return v + "°"; } },
+  ], S, function () { redraw(); });
+  $("presets").innerHTML = PRE.map(function (q, i) { return '<button class="btn" data-i="' + i + '">' + q[0] + "</button>"; }).join("");
+  $("presets").querySelectorAll("button").forEach(function (b) { b.addEventListener("click", function () { S.ph = PRE[Number(b.dataset.i)][1]; P.sync(); redraw(); }); });
+
+  function draw() {
+    var Vm = S.V * Math.SQRT2, Im = S.I * Math.SQRT2, phi = S.ph * Math.PI / 180, Pavg = S.V * S.I * Math.cos(phi);
+    $("formula").innerHTML = tex("p = vi = \\frac{V_mI_m}{2}\\{\\cos\\varphi - \\cos(2\\omega t - \\varphi)\\}", true);
+    $("formula2").innerHTML = tex("\\text{平均の電力}\\ P = VI\\cos\\varphi = " + S.V + "\\times " + TU.fmtNum(S.I, 1) + "\\times\\cos " + S.ph + "^\\circ \\approx " + TU.fmtNum(Pavg, 1) + "\\ \\text{W}");
+    var xs = TU.linspace(0, 720, 721), r = function (d) { return d * Math.PI / 180; };
+    var d1 = [UI.lineTrace(xs, xs.map(function (x) { return Vm * Math.sin(r(x)); }), "電圧 v [V]", C.v, { width: 2.5 }),
+      UI.lineTrace(xs, xs.map(function (x) { return Im * Math.sin(r(x) - phi); }), "電流 i [A]", C.i, { width: 2.5, extra: { yaxis: "y2" } })];
+    var L1 = UI.layout({ height: 300, margin: { l: 50, r: 50, t: 30, b: 36 },
+      xaxis: UI.axis({ range: [0, 720], dtick: 90, title: { text: "ωt [°]" } }), yaxis: UI.axis({ range: [-Vm * 1.15, Vm * 1.15], title: { text: "v [V]", font: { color: C.v } } }),
+      yaxis2: UI.axis({ range: [-Im * 1.15, Im * 1.15], overlaying: "y", side: "right", zeroline: false, showgrid: false, title: { text: "i [A]", font: { color: C.i } } }) });
+    Plotly.react("vi", d1, L1, UI.CONFIG);
+
+    var ps = xs.map(function (x) { return PW.power(Vm, Im, phi, r(x)); });
+    var pos = ps.map(function (p) { return p > 0 ? p : 0; }), neg = ps.map(function (p) { return p < 0 ? p : 0; });
+    var d2 = [UI.lineTrace(xs, pos, "電力が送られる（p > 0）", "rgba(148,103,189,0)", { width: 0, extra: { fill: "tozeroy", fillcolor: "rgba(148,103,189,0.25)", hoverinfo: "skip" } }),
+      UI.lineTrace(xs, neg, "電力がもどる（p < 0）", "rgba(255,127,14,0)", { width: 0, extra: { fill: "tozeroy", fillcolor: "rgba(255,127,14,0.3)", hoverinfo: "skip" } }),
+      UI.lineTrace(xs, ps, "電力 p = vi [W]", C.p, { width: 2.5 })];
+    var M = Vm * Im;
+    var L2 = UI.layout({ height: 330, margin: { l: 60, r: 10, t: 30, b: 40 },
+      xaxis: UI.axis({ range: [0, 720], dtick: 90, title: { text: "ωt [°]" } }), yaxis: UI.axis({ range: [-M * 0.6, M * 1.1], title: { text: "p [W]" } }) });
+    L2.shapes.push({ type: "line", x0: 0, x1: 720, y0: Pavg, y1: Pavg, line: { color: C.P, width: 2.5, dash: "dash" } });
+    L2.annotations.push({ x: 720, y: Pavg, text: "平均 P ≈ " + TU.fmtNum(Pavg, 1) + " W", showarrow: false, xanchor: "right", yanchor: "bottom", font: { color: C.P, size: 13 } });
+    Plotly.react("pw", d2, L2, UI.CONFIG);
+
+    UI.metrics("metrics", [["力率 cos φ", TU.fmtNum(Math.cos(phi), 3)], ["有効電力 P = VI cos φ", TU.fmtNum(Pavg, 1) + " W"], ["皮相電力 VI", TU.fmtNum(S.V * S.I, 1) + " VA"],
+      ["無効電力 VI sin φ", TU.fmtNum(S.V * S.I * Math.sin(phi), 1) + " var"], ["p の振動の周期", "電圧の半分（2ωt）"]]);
+    $("msg").innerHTML = "電力 p は電圧と電流の積。積和の公式で変形すると、一定の部分 " + tex("\\frac{V_mI_m}{2}\\cos\\varphi = VI\\cos\\varphi") + " と、2 倍の速さで振動する部分に分かれます。振動する部分は平均すると 0 なので、平均の電力は " + tex("VI\\cos\\varphi") + "。"
+      + "<br>電流が電圧とずれる（φ ≠ 0）と、オレンジの部分で電力がもどってしまい、同じ電圧・電流でも使える電力が減ります。<b>力率 cos φ</b> は 1 に近いほど効率がよい。"
+      + "コイルだけ（φ = 90°）やコンデンサだけ（φ = −90°）では、送った分と同じだけもどるので、平均の電力は 0 です。";
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  P.sync(); draw();
+})();
+</script>
+</body>
+</html>

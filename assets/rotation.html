@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+#plot { height: 430px; }
+@media (max-width: 720px) { #plot { height: 320px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="wheel">① 転がる車輪（弧の長さ rθ）</button>
+    <button data-tab="gear">② 歯車</button>
+    <button data-tab="belt">③ ベルト車</button>
+  </div>
+  <div class="box">
+    <h3>パラメータ</h3>
+    <div class="params three" id="params"></div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn play" id="play"></button>
+      <div class="seg" data-key="slow"><button data-v="1">実際の速さ</button><button data-v="0.25">1/4 の速さ</button><button data-v="0.05">1/20 の速さ</button></div>
+      <button class="btn" id="zero">角度を 0 にもどす</button>
+    </div>
+  </div>
+  <div class="formula"><div class="main" id="formula"></div><div class="sub" id="formula2"></div></div>
+  <div class="plot" id="plot"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="info-box" id="msg"></div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var S = UI.store("rotation_v1", { tab: "wheel", N1: 30, r: 30, z1: 20, z2: 40, r1: 10, r2: 25, slow: "0.25" });
+  var th = 0;   // 1 つ目の回転角 [rad]（累積）
+  var defs = {
+    wheel: [
+      { key: "r", label: "r", sub: "車輪の半径 [cm]", min: 10, max: 50, step: 1, fmt: function (v) { return v + " cm"; } },
+      { key: "N1", label: "N", sub: "回転数 [rpm]（1 分間の回転数）", min: 1, max: 120, step: 1, fmt: function (v) { return v + " rpm"; } },
+    ],
+    gear: [
+      { key: "N1", label: "N₁", sub: "歯車 1 の回転数 [rpm]", min: 1, max: 120, step: 1, fmt: function (v) { return v + " rpm"; } },
+      { key: "z1", label: "z₁", sub: "歯車 1 の歯数", min: 8, max: 60, step: 1, fmt: function (v) { return v + " 枚"; } },
+      { key: "z2", label: "z₂", sub: "歯車 2 の歯数", min: 8, max: 60, step: 1, fmt: function (v) { return v + " 枚"; } },
+    ],
+    belt: [
+      { key: "N1", label: "N₁", sub: "ベルト車 1 の回転数 [rpm]", min: 1, max: 120, step: 1, fmt: function (v) { return v + " rpm"; } },
+      { key: "r1", label: "r₁", sub: "ベルト車 1 の半径 [cm]", min: 4, max: 30, step: 0.5, fmt: function (v) { return TU.fmtNum(v, 1) + " cm"; } },
+      { key: "r2", label: "r₂", sub: "ベルト車 2 の半径 [cm]", min: 4, max: 30, step: 0.5, fmt: function (v) { return TU.fmtNum(v, 1) + " cm"; } },
+    ],
+  };
+  var P;
+  function setup() { P = UI.params("params", defs[S.tab], S, function () { redraw(); }); P.sync(); }
+  function f(v, d) { return TU.fmtNum(v, d === undefined ? 2 : d); }
+  function radText(a) { return f(a, 2) + " rad（" + f(a * 180 / Math.PI, 0) + "°）"; }
+
+  function spoke(cx, cy, R, a, color) { return UI.lineTrace([cx, cx + R * Math.cos(a)], [cy, cy + R * Math.sin(a)], "", color, { width: 3, extra: { hoverinfo: "skip" } }); }
+
+  function draw() {
+    var data = [], L, w1 = RO.omega(S.N1);
+    if (S.tab === "wheel") {
+      var r = S.r, dist = r * th, cx = dist;
+      var span = Math.max(8 * r, dist + 2 * r);
+      L = UI.layout({ height: $("plot").clientHeight || 430, showlegend: false, margin: { l: 40, r: 10, t: 10, b: 36 },
+        xaxis: UI.axis({ range: [-1.5 * r, Math.max(6.5 * r, dist + 1.5 * r)], zeroline: false, title: { text: "[cm]" } }),
+        yaxis: UI.axis({ range: [-0.6 * r, 2.6 * r], scaleanchor: "x", zeroline: false }) });
+      L.shapes.push({ type: "line", x0: -10 * r, x1: span * 3, y0: 0, y1: 0, line: { color: "#555", width: 2 } });
+      // 地面に転がった長さ（赤）と、車輪の上の同じ長さの弧（赤）
+      data.push(UI.lineTrace([0, dist], [0, 0], "転がった距離", "#d62728", { width: 6, extra: { hoverinfo: "skip" } }));
+      var c = UI.circle(cx, r, r, 160);
+      data.push(UI.lineTrace(c.x, c.y, "車輪", "#1f77b4", { width: 3, extra: { hoverinfo: "skip" } }));
+      // 車輪は時計回りに回るので、はじめに接地していた点は −π/2 − θ の位置にある。そこから接地点までの弧
+      var arcN = 80, ax = [], ay = [], A = Math.min(th, 2 * Math.PI * 0.999);
+      for (var i = 0; i <= arcN; i++) { var a = -Math.PI / 2 - A * i / arcN; ax.push(cx + r * Math.cos(a)); ay.push(r + r * Math.sin(a)); }
+      if (th > 0) data.push(UI.lineTrace(ax, ay, "", "#d62728", { width: 6, extra: { hoverinfo: "skip" } }));
+      data.push(spoke(cx, r, r, -Math.PI / 2, "rgba(0,0,0,0.25)"));
+      data.push(spoke(cx, r, r, -Math.PI / 2 - A, "#d62728"));
+      data.push(UI.pointTrace([cx], [r], "", "#333", 7, { hoverinfo: "skip" }));
+      $("formula").innerHTML = tex("s = r\\theta = " + r + "\\times " + f(th, 2) + " \\approx " + f(dist, 1) + "\\ \\text{cm}", true);
+      $("formula2").innerHTML = tex("\\omega = \\frac{2\\pi N}{60} = " + f(w1, 3) + "\\ \\text{rad/s},\\qquad v = r\\omega \\approx " + f(r * w1, 1) + "\\ \\text{cm/s} = " + f(r * w1 * 0.036, 2) + "\\ \\text{km/h}");
+      UI.metrics("metrics", [["回転角 θ", radText(th)], ["回転数", f(th / (2 * Math.PI), 2) + " 回転"], ["転がった距離 s = rθ", f(dist, 1) + " cm"],
+        ["1 回転で進む距離 2πr", f(2 * Math.PI * r, 1) + " cm"], ["速さ v = rω", f(r * w1 * 0.036, 2) + " km/h"]]);
+      $("msg").innerHTML = "車輪がすべらずに転がると、地面に接した赤い長さ（転がった距離）と、車輪の上の赤い弧の長さは同じです。"
+        + "半径 r の円で角 θ [rad] に対する弧の長さは " + tex("r\\theta") + "。<b>弧度法を使うと、距離 = 半径 × 角度 という簡単な式になる</b> のが、ラジアンを使う大きな理由です"
+        + "（度数法では " + tex("2\\pi r \\times \\dfrac{\\theta^\\circ}{360^\\circ}") + " と書かなければならない）。";
+    } else if (S.tab === "gear") {
+      var m = 1, R1 = m * S.z1 / 2, R2 = m * S.z2 / 2, N2 = RO.gearN2(S.N1, S.z1, S.z2), th2 = -th * S.z1 / S.z2 + Math.PI - 2 * Math.PI / S.z2;   // 歯と歯みぞがかみ合う位置
+      var g1 = RO.gearOutline(0, 0, R1, S.z1, 2.2 * m, th), g2 = RO.gearOutline(R1 + R2, 0, R2, S.z2, 2.2 * m, th2);
+      L = UI.layout({ height: $("plot").clientHeight || 430, showlegend: false, margin: { l: 10, r: 10, t: 10, b: 10 },
+        xaxis: UI.axis({ range: [-R1 - 3, R1 + 2 * R2 + 3], visible: false }), yaxis: UI.axis({ range: [-Math.max(R1, R2) - 3, Math.max(R1, R2) + 3], visible: false, scaleanchor: "x" }) });
+      data.push(UI.lineTrace(g1.x, g1.y, "歯車 1", "#1f77b4", { width: 2, extra: { fill: "toself", fillcolor: "rgba(31,119,180,0.15)", hoverinfo: "skip" } }));
+      data.push(UI.lineTrace(g2.x, g2.y, "歯車 2", "#ff7f0e", { width: 2, extra: { fill: "toself", fillcolor: "rgba(255,127,14,0.15)", hoverinfo: "skip" } }));
+      data.push(spoke(0, 0, R1 * 0.85, th, "#1f77b4"));
+      data.push(spoke(R1 + R2, 0, R2 * 0.85, th2, "#ff7f0e"));
+      data.push(UI.pointTrace([0, R1 + R2], [0, 0], "", "#333", 7, { hoverinfo: "skip" }));
+      L.annotations.push({ x: 0, y: -R1 - 1.5, text: "z₁ = " + S.z1 + "、N₁ = " + S.N1 + " rpm", showarrow: false, font: { color: "#1f77b4" } });
+      L.annotations.push({ x: R1 + R2, y: -R2 - 1.5, text: "z₂ = " + S.z2 + "、N₂ ≈ " + f(N2, 1) + " rpm", showarrow: false, font: { color: "#ff7f0e" } });
+      $("formula").innerHTML = tex("N_2 = N_1\\times\\frac{z_1}{z_2} = " + S.N1 + "\\times\\frac{" + S.z1 + "}{" + S.z2 + "} \\approx " + f(N2, 1) + "\\ \\text{rpm}", true);
+      $("formula2").innerHTML = tex("\\text{かみ合う点の速さが同じ：}\\ r_1\\omega_1 = r_2\\omega_2\\ \\ (r \\propto z)");
+      UI.metrics("metrics", [["歯車 1 の回転角", radText(th)], ["歯車 2 の回転角", radText(th * S.z1 / S.z2)], ["速度比 N₁ : N₂", "1 : " + f(S.z1 / S.z2, 3)],
+        ["ω₁", f(w1, 2) + " rad/s"], ["ω₂", f(RO.omega(N2), 2) + " rad/s"]]);
+      $("msg").innerHTML = "かみ合う 2 つの歯車は、歯が 1 枚ずつ送られるので、接している点の速さ（周速）が同じです。"
+        + "回る向きは <b>反対</b> になり、歯数の多い歯車ほどゆっくり回ります（回転数は歯数に反比例）。"
+        + "自転車の変速機や時計、自動車の変速機に使われています。";
+    } else {
+      var r1 = S.r1, r2 = S.r2, D = r1 + r2 + 12, N2b = RO.beltN2(S.N1, r1, r2), th2b = th * r1 / r2;
+      L = UI.layout({ height: $("plot").clientHeight || 430, showlegend: false, margin: { l: 10, r: 10, t: 10, b: 10 },
+        xaxis: UI.axis({ range: [-r1 - 3, D + r2 + 3], visible: false }), yaxis: UI.axis({ range: [-Math.max(r1, r2) - 4, Math.max(r1, r2) + 4], visible: false, scaleanchor: "x" }) });
+      // ベルトの外側の接線（2 円の共通外接線）
+      var phi = Math.asin((r1 - r2) / D);
+      var t1 = [r1 * Math.sin(phi), r1 * Math.cos(phi)], t2 = [D + r2 * Math.sin(phi), r2 * Math.cos(phi)];
+      data.push(UI.lineTrace([t1[0], t2[0]], [t1[1], t2[1]], "ベルト", "#555", { width: 3, extra: { hoverinfo: "skip" } }));
+      data.push(UI.lineTrace([t1[0], t2[0]], [-t1[1], -t2[1]], "", "#555", { width: 3, extra: { hoverinfo: "skip" } }));
+      var c1 = UI.circle(0, 0, r1, 100), c2 = UI.circle(D, 0, r2, 100);
+      data.push(UI.lineTrace(c1.x, c1.y, "", "#1f77b4", { width: 3, extra: { fill: "toself", fillcolor: "rgba(31,119,180,0.12)", hoverinfo: "skip" } }));
+      data.push(UI.lineTrace(c2.x, c2.y, "", "#ff7f0e", { width: 3, extra: { fill: "toself", fillcolor: "rgba(255,127,14,0.12)", hoverinfo: "skip" } }));
+      [0, 1, 2].forEach(function (k) { data.push(spoke(0, 0, r1, -th + 2 * Math.PI * k / 3, "#1f77b4")); data.push(spoke(D, 0, r2, -th2b + 2 * Math.PI * k / 3, "#ff7f0e")); });
+      // ベルトの上の印（ベルトの進んだ距離 = r1 θ）
+      var len = Math.hypot(t2[0] - t1[0], t2[1] - t1[1]), pos = (r1 * th) % len;
+      data.push(UI.pointTrace([t1[0] + (t2[0] - t1[0]) * pos / len], [t1[1] + (t2[1] - t1[1]) * pos / len], "ベルトの印", "#d62728", 11));
+      $("formula").innerHTML = tex("N_2 = N_1\\times\\frac{r_1}{r_2} = " + S.N1 + "\\times\\frac{" + f(r1, 1) + "}{" + f(r2, 1) + "} \\approx " + f(N2b, 1) + "\\ \\text{rpm}", true);
+      $("formula2").innerHTML = tex("\\text{ベルトの速さ}\\ v = r_1\\omega_1 = r_2\\omega_2 \\approx " + f(r1 * w1, 1) + "\\ \\text{cm/s}");
+      UI.metrics("metrics", [["ベルト車 1 の回転角", radText(th)], ["ベルト車 2 の回転角", radText(th2b)], ["ベルトが進んだ長さ r₁θ₁", f(r1 * th, 1) + " cm"],
+        ["N₂", f(N2b, 1) + " rpm"], ["ベルトの速さ", f(r1 * w1, 1) + " cm/s"]]);
+      $("msg").innerHTML = "ベルトはすべらないので、どちらのベルト車の円周も同じ長さだけ送られます：" + tex("r_1\\theta_1 = r_2\\theta_2") + "（弧の長さ rθ）。"
+        + "歯車と違って回る向きは <b>同じ</b>。小さいベルト車を回すと大きいベルト車はゆっくり、しかし強い力で回ります。";
+    }
+    Plotly.react("plot", data, L, UI.CONFIG);
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  new UI.Player($("play"), function (dt) {
+    th += RO.omega(S.N1) * dt * Number(S.slow);
+    if (S.tab === "wheel" && S.r * th > 40 * S.r) th = 0;
+    draw();
+  }, ["▶ 回す", "⏸ 停止"]);
+  $("zero").addEventListener("click", function () { th = 0; redraw(); });
+  UI.tabs(S, "tab", function () { th = 0; setup(); redraw(); });
+  UI.bindSegs(S, function () { UI.syncSegs(S); });
+  UI.syncSegs(S); setup(); draw();
+})();
+</script>
+</body>
+</html>
