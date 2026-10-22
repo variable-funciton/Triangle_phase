@@ -7,7 +7,7 @@ Streamlit Community Cloud で公開する、三角関数の学習用 Web アプ�
 | ページ | 内容 | 関連課題 |
 |---|---|---|
 | 三角比・三角関数の公式まとめ | 有名角の度数法・弧度法と sin/cos/tan の値（単位円の図）、ラジアンと扇形、三角比の定義・相互関係・角の変換・グラフの性質、正弦定理・余弦定理（三角形と外接円の図）、加法定理と派生公式、公式を数値で確かめる | 後期課題1〜3・7・8 |
-| 一般形 `y = A sin B(x − t) + β` | グラフの上に並べた 4 つのスライダーで振幅・周期・平行移動を操作（t は π の倍数／小数を切りかえ）。各グラフにそのときの式を表示。①重ねて比較 ②段階的に変形 ③アニメーション（式もコマごとに変わる） | 後期課題4・5・6 |
+| 一般形 `y = A sin B(x − α) + β` | 「表示の設定」（基本の関数・角度の単位・α の入れ方）と「パラメータ」（A, B, α, β のスライダー）を別の囲みに分け、スライダーを動かすとグラフと式が連続的に変わる（ブラウザ側で描画）。式を大きく表示、①重ねて比較（キーポイントと矢印・Bx − α の形との比較は任意）②段階的に変形 | 後期課題4・5・6 |
 | sin と cos の位相差 | `sin(x − t)` と `cos x` を重ねて π/2 の位相差と周期性を確認（旧 `traingle_sincos_phase`） | 後期課題3・4・5 |
 | テントマップの変換と合成 | `y = a f(b(x−p)) + q` の拡大・縮小・平行移動・反転（旧 `Expand_transform`）、HTML/PDF 保存、合成関数 f(g(x)) と g(f(x))、f の n 回合成、蜘蛛の巣図 | 後期課題5・12 |
 | 三角関数の合成 | `a sin x + b cos x = R sin(x+α) = R cos(x+β)`。点 (a, b) と角 α、2 つの波の和、回転するベクトルのアニメーション、sin 形と cos 形、区間での最大・最小 | 後期課題8 |
@@ -24,7 +24,7 @@ streamlit_app.py      エントリーポイント（ページ一覧はここで�
 views/                各ページ
   home.py
   basics.py           三角比・三角関数の公式まとめ
-  general_form.py
+  general_form.py     一般形（画面は assets/general_form.html をブラウザで動かす）
   phase_shift.py
   tent_map.py         テントマップの変換と合成
   synthesis.py        三角関数の合成
@@ -34,6 +34,7 @@ views/                各ページ
   monkey.py           モンキーハンティング
   spring.py           バネの単振動と波
 explain/              物理のページの「詳しい解説」タブ（projectile.py・monkey.py・spring.py）
+assets/               ブラウザ側で動く部品（general_form.html・general_form_core.js）
 utils/                共通部品
   formulas.py         公式の一覧（表示用 LaTeX と数値確認用の関数）・三角形の計算
   angles.py           π の分数・度数の表示（π/2, −3π/4, 90° など）
@@ -69,6 +70,7 @@ python -m tests.test_tent        # テントマップのテスト
 python -m tests.test_fourier     # フーリエ級数のテスト
 python -m tests.test_oscillation # 単振動と波のテスト
 python -m tests.test_formulas    # 公式まとめのテスト
+node tests/test_general_form_js.js  # 一般形ページ（JavaScript）のテスト
 ```
 
 ## ページの追加方法

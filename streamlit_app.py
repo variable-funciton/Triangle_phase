@@ -16,7 +16,7 @@ PAGES = {
         st.Page("views/basics.py", title="三角比・三角関数の公式まとめ", icon="📚", url_path="basics"),
     ],
     "三角関数のグラフ": [
-        st.Page("views/general_form.py", title="一般形 y = A sin B(x − t) + β", icon="🌊",
+        st.Page("views/general_form.py", title="一般形 y = A sin B(x − α) + β", icon="🌊",
                 url_path="general_form"),
         st.Page("views/phase_shift.py", title="sin と cos の位相差", icon="🔁", url_path="phase_shift"),
     ],
