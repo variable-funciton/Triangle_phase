@@ -22,8 +22,8 @@ with c1:
     with st.container(border=True):
         st.subheader("🌊 一般形のグラフ")
         st.markdown(
-            r"$y = A\sin B(x - t) + \beta$ の **振幅・周期・平行移動** を調べる。"
-            "段階的な変形やアニメーションもあります。"
+            r"$y = A\sin B(x - \alpha) + \beta$ の **振幅・周期・平行移動** を調べる。"
+            "スライダーを動かすとグラフと式が連続的に変わる。段階的な変形もあります。"
         )
         st.caption("関連: 後期課題4（グラフ）・課題5（グラフの変形）・課題6（位相がずれた方程式）")
         st.page_link("views/general_form.py", label="ページを開く", icon="➡️")
