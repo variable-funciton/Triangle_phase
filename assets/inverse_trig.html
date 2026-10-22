@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#plot { height: 560px; }
+@media (max-width: 720px) { #plot { height: 440px; } }
+.presets button { min-width: 3.2em; padding: 4px 8px; }
+.sol-list { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 17px; }
+.sol-list .p { color: var(--wave); font-weight: 700; }
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>表示の設定</h3>
+    <div class="settings">
+      <div class="group"><div class="gl">逆関数</div>
+        <div class="seg" data-key="fn"><button data-v="sin">arcsin x</button><button data-v="cos">arccos x</button><button data-v="tan">arctan x</button></div></div>
+      <div class="group checks">
+        <label><input type="checkbox" data-show="band"> 主値の範囲を色づけ</label>
+        <label><input type="checkbox" data-show="mirror"> 対応する点と折り返し</label>
+        <label><input type="checkbox" data-show="whole"> 制限しないで折り返すと？</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h3>値 k を選ぶ（<span id="eq-title"></span>）</h3>
+    <div class="prm">
+      <div class="top"><span class="name">k</span><span class="val" id="v-k"></span></div>
+      <div class="row"><button class="step-btn" data-for="s-k" data-d="-1">−</button><input type="range" id="s-k" step="0.01"><button class="step-btn" data-for="s-k" data-d="1">＋</button></div>
+    </div>
+    <div class="btns presets" id="presets" style="margin-top:6px"></div>
+  </div>
+
+  <div class="formula">
+    <div class="main" id="formula"></div>
+    <div class="sub" id="formula-sub"></div>
+  </div>
+
+  <div class="layout">
+    <div><div class="plot" id="plot"></div>
+      <div class="hint">
+        <span class="legend-dot" style="background:#1f77b4"></span>主値の範囲の元の関数（P はその上の点）
+        <span class="legend-dot" style="background:#ff7f0e;margin-left:10px"></span>逆関数（Q はその上の点）
+        <span class="legend-dot" style="background:#9aa0a6;margin-left:10px"></span>y = k との交点（緑の点線が y = k）
+        　黒の破線が y = x（この直線に関して対称）。点にカーソルを合わせると座標が出ます。
+      </div>
+    </div>
+    <div>
+      <div class="metrics" id="metrics"></div>
+      <div class="info-box" id="why"></div>
+      <div class="box" style="margin-top:10px">
+        <h3>方程式 <span id="eq-tex"></span> の解</h3>
+        <div class="seg" data-key="interval" style="margin-bottom:8px">
+          <button data-v="0,2">0 ≦ x &lt; 2π</button><button data-v="-1,1">−π ≦ x &lt; π</button><button data-v="-2,2">−2π ≦ x &lt; 2π</button>
+        </div>
+        <div class="sol-list" id="sols"></div>
+        <div style="margin-top:8px" id="general"></div>
+        <div class="hint" id="sol-hint" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { base: "#9aa0a6", main: "#1f77b4", inv: "#ff7f0e", k: "#2ca02c", band1: "rgba(31,119,180,0.08)", band2: "rgba(255,127,14,0.10)" };
+  var S = UI.store("inv_trig_v1", { fn: "sin", k: { sin: Math.sqrt(3) / 2, cos: 0.5, tan: 1 }, interval: "0,2",
+    show: { band: true, mirror: true, whole: false } });
+  var R = 4.4;   // 表示範囲 −R 〜 R（x, y とも。縦横の目盛りをそろえて y = x の対称が正しく見えるように）
+
+  function kNow() { return S.k[S.fn]; }
+  function kShow(k) { return TU.exactValue(k, 2); }
+
+  function setupSlider() {
+    var sp = IT.SPECS[S.fn], el = $("s-k");
+    el.min = sp.kmin; el.max = sp.kmax; el.step = 0.01; el.value = kNow();
+    $("presets").innerHTML = sp.presets.map(function (v, i) {
+      return '<button class="btn" data-i="' + i + '">' + tex(TU.exactValue(v).tex) + "</button>";
+    }).join("");
+    $("presets").querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () { S.k[S.fn] = sp.presets[Number(b.dataset.i)]; $("s-k").value = S.k[S.fn]; draw(); });
+    });
+    document.querySelectorAll("[data-show]").forEach(function (c) { c.checked = !!S.show[c.dataset.show]; });
+    UI.syncSegs(S);
+  }
+
+  function draw() {
+    var fn = S.fn, sp = IT.SPECS[fn], k = kNow(), th = IT.principal(fn, k), ks = kShow(k), ths = IT.angleShow(th);
+    var name = sp.name, inv = sp.inv_tex;
+    // ---- 式 ----
+    $("v-k").textContent = ks.text;
+    $("eq-title").innerHTML = tex(name + " x = k");
+    $("eq-tex").innerHTML = tex(name + " x = " + ks.tex);
+    $("formula").innerHTML = tex(inv + "\\left(" + ks.tex + "\\right) " + (ths.exact ? "= " : "") + ths.tex, true);
+    $("formula-sub").innerHTML = tex(name + "\\theta = " + ks.tex + "\\ \\text{かつ}\\ " + IT.rangeTex(fn, "\\theta") +
+      "\\ \\text{をみたす}\\ \\theta");
+    $("metrics").innerHTML = [
+      [tex("y = " + inv + " x") + " の定義域", tex(IT.domainTex(fn, "x"))],
+      ["値域（主値の範囲）", tex(IT.rangeTex(fn, "y"))],
+      ["別の書き方", tex(sp.alt_tex + " x")],
+    ].map(function (m) { return '<div class="metric"><div class="ml">' + m[0] + '</div><div class="mv">' + m[1] + "</div></div>"; }).join("");
+    $("why").innerHTML = fn === "sin"
+      ? "y = sin x は x を決めると y が 1 つ決まりますが、y = k となる x は無数にあります。そこで x を " + tex("-\\frac{\\pi}{2} \\le x \\le \\frac{\\pi}{2}") + "（青い部分）に制限すると、−1 から 1 までの値をちょうど 1 回ずつとるので、逆関数が作れます。"
+      : fn === "cos"
+        ? "cos x では " + tex("0 \\le x \\le \\pi") + "（青い部分）に制限します。" + tex("-\\frac{\\pi}{2} \\le x \\le \\frac{\\pi}{2}") + " では cos x が同じ値を 2 回とる（たとえば ±π/3）ので使えません。"
+        : "tan x では " + tex("-\\frac{\\pi}{2} < x < \\frac{\\pi}{2}") + "（青い部分）に制限します。両端は tan が定義されないので含みません。そのかわり k はどんな実数でもよく、arctan x のグラフは " + tex("y = \\pm\\frac{\\pi}{2}") + " に近づいていきます。";
+    $("why").innerHTML += "<br>" + tex(sp.alt_tex + " x") + " は " + tex("\\dfrac{1}{" + name + " x}") + " ではないので注意。";
+
+    // ---- グラフ ----
+    var data = [], L = UI.layout({ height: $("plot").clientHeight || 560, margin: { l: 40, r: 10, t: 10, b: 36 }, showlegend: false,
+      xaxis: UI.axis({ range: [-R, R], tickvals: [-1.5, -1, -0.5, 0, 0.5, 1, 1.5].map(function (q) { return q * Math.PI; }).concat([-1, 1]),
+        ticktext: ["−3π/2", "−π", "−π/2", "0", "π/2", "π", "3π/2", "−1", "1"], title: { text: "x" } }),
+      yaxis: UI.axis({ range: [-R, R], scaleanchor: "x", scaleratio: 1,
+        tickvals: [-1.5, -1, -0.5, 0, 0.5, 1, 1.5].map(function (q) { return q * Math.PI; }).concat([-1, 1]),
+        ticktext: ["−3π/2", "−π", "−π/2", "0", "π/2", "π", "3π/2", "−1", "1"], title: { text: "y" } }) });
+    var d0 = sp.dom[0] * Math.PI, d1 = sp.dom[1] * Math.PI;
+    if (S.show.band) {
+      L.shapes.push({ type: "rect", xref: "x", yref: "y", x0: d0, x1: d1, y0: -R, y1: R, fillcolor: C.band1, line: { width: 0 }, layer: "below" });
+      L.shapes.push({ type: "rect", xref: "x", yref: "y", x0: -R, x1: R, y0: d0, y1: d1, fillcolor: C.band2, line: { width: 0 }, layer: "below" });
+    }
+    if (fn === "tan") {   // arctan の漸近線 y = ±π/2 と tan の漸近線 x = ±π/2
+      [-0.5, 0.5].forEach(function (q) {
+        L.shapes.push({ type: "line", x0: -R, x1: R, y0: q * Math.PI, y1: q * Math.PI, line: { color: C.inv, width: 1, dash: "dot" } });
+        L.shapes.push({ type: "line", y0: -R, y1: R, x0: q * Math.PI, x1: q * Math.PI, line: { color: C.main, width: 1, dash: "dot" } });
+      });
+    }
+    var full = IT.curve(fn, -R, R, 900);
+    data.push(UI.lineTrace(full.x, full.y, "y = " + fn + " x（全体）", C.base, { width: 1.8 }));
+    var eps = fn === "tan" ? 0.04 : 0;
+    var part = IT.curve(fn, d0 + eps, d1 - eps, 400);
+    data.push(UI.lineTrace(part.x, part.y, "主値の範囲の y = " + fn + " x", C.main, { width: 4 }));
+    data.push(UI.lineTrace([-R, R], [-R, R], "y = x", "#333", { width: 1.2, dash: "dash" }));
+    if (S.show.whole) {
+      data.push(UI.lineTrace(full.y, full.x, "全体を折り返したもの（関数にならない）", C.inv, { width: 1.5, dash: "dot" }));
+      L.shapes.push({ type: "line", x0: k, x1: k, y0: -R, y1: R, line: { color: "#d62728", width: 1.2, dash: "dash" } });
+      var many = IT.solutions(fn, k, -R / Math.PI, R / Math.PI);
+      data.push(UI.pointTrace(many.map(function () { return k; }), many.map(function (x) { return x * Math.PI; }),
+        "x = k に対応する y がたくさん", "#d62728", 8, { marker: { color: "#d62728", size: 8, symbol: "x" } }));
+    }
+    data.push(UI.lineTrace(part.y, part.x, "y = " + (fn === "sin" ? "arcsin" : fn === "cos" ? "arccos" : "arctan") + " x", C.inv, { width: 4 }));
+    // y = k の直線と交点
+    L.shapes.push({ type: "line", x0: -R, x1: R, y0: k, y1: k, line: { color: C.k, width: 1.3, dash: "dot" } });
+    var sols = IT.solutions(fn, k, -R / Math.PI, R / Math.PI);
+    data.push(UI.pointTrace(sols.map(function (x) { return x * Math.PI; }), sols.map(function () { return k; }),
+      "y = k との交点", C.base, 9));
+    var P = [th * Math.PI, k], Q = [k, th * Math.PI];
+    data.push(UI.pointTrace([P[0]], [P[1]], "P（主値の範囲の交点）", C.main, 14));
+    if (S.show.mirror) {
+      data.push(UI.lineTrace([P[0], Q[0]], [P[1], Q[1]], "P と Q を結ぶ線（y = x に垂直）", "#555", { width: 1.2, dash: "dash", extra: { hoverinfo: "skip" } }));
+      data.push(UI.pointTrace([Q[0]], [Q[1]], "Q（逆関数のグラフ上の点）", C.inv, 14));
+      // P は y = x の右下（または左上）にあるので、ラベルは直線から離れる向きに置く
+      var below = P[0] >= P[1];
+      L.annotations.push({ x: P[0], y: P[1], text: "P(θ, k)", showarrow: false, xanchor: below ? "left" : "right", yanchor: below ? "top" : "bottom",
+        xshift: below ? 8 : -8, yshift: below ? -4 : 4, font: { color: C.main, size: 13 } });
+      L.annotations.push({ x: Q[0], y: Q[1], text: "Q(k, θ)", showarrow: false, xanchor: below ? "right" : "left", yanchor: below ? "bottom" : "top",
+        xshift: below ? -8 : 8, yshift: below ? 4 : -4, font: { color: C.inv, size: 13 } });
+    }
+    Plotly.react("plot", data, L, UI.CONFIG);
+
+    // ---- 方程式の解 ----
+    var iv = S.interval.split(",").map(Number);
+    var list = IT.solutions(fn, k, iv[0], iv[1]);
+    $("sols").innerHTML = list.length ? list.map(function (x) {
+      var a = IT.angleShow(x), isP = Math.abs(x - th) < 1e-9;
+      return '<span class="' + (isP ? "p" : "") + '">' + tex("x " + (a.exact ? "= " : "") + a.tex) + (isP ? "（主値）" : "") + "</span>";
+    }).join("") : "解なし";
+    var gen = IT.generalTex(fn, k);
+    $("general").innerHTML = "一般解（n は整数）：" + tex(gen) + (gen.indexOf("\\theta") >= 0 ? "　ただし " + tex("\\theta = " + inv + "\\left(" + ks.tex + "\\right) " + ths.tex) : "");
+    $("sol-hint").innerHTML = fn === "sin" ? "単位円で考えると、y 座標が k になる点は 2 つ（θ と π − θ）。主値はそのうち右半分（第1・第4象限）にある方。"
+      : fn === "cos" ? "単位円で考えると、x 座標が k になる点は 2 つ（θ と −θ）。主値はそのうち上半分（0 〜 π）にある方。"
+      : "tan は周期 π なので、主値 θ に π ずつ足したものが全部の解。";
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+
+  UI.bindSegs(S, function (key) { if (key === "fn") setupSlider(); UI.syncSegs(S); redraw(); });
+  UI.bindRange("s-k", function (v) { S.k[S.fn] = v; redraw(); }, 0.01);
+  document.querySelectorAll("[data-show]").forEach(function (c) {
+    c.addEventListener("change", function () { S.show[c.dataset.show] = c.checked; redraw(); });
+  });
+  setupSlider();
+  draw();
+})();
+</script>
+</body>
+</html>

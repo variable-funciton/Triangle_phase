@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+#plot { height: 620px; }
+@media (max-width: 720px) { #plot { height: 480px; } }
+.presets button { padding: 4px 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>表示の設定</h3>
+    <div class="settings">
+      <div class="group checks">
+        <label><input type="checkbox" data-show="waves"> x(t)・y(t) の波形も表示</label>
+        <label><input type="checkbox" data-show="full"> 1 周分の軌跡をうすく表示</label>
+        <label><input type="checkbox" data-show="int"> a, b を整数にそろえる</label>
+      </div>
+      <div class="group"><div class="gl">よく出る形</div>
+        <div class="btns presets" id="presets"></div></div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h3>パラメータ　<span id="gen"></span></h3>
+    <div class="params three">
+      <div class="prm"><div class="top"><span class="name">a<small>x の角振動数</small></span><span class="val" id="v-a"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-a" data-d="-1">−</button><input type="range" id="s-a" min="0.5" max="8"><button class="step-btn" data-for="s-a" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">b<small>y の角振動数</small></span><span class="val" id="v-b"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-b" data-d="-1">−</button><input type="range" id="s-b" min="0.5" max="8"><button class="step-btn" data-for="s-b" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">δ<small>位相差</small></span><span class="val" id="v-delta"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-delta" data-d="-1">−</button><input type="range" id="s-delta" min="0" max="6.2832" step="0.01"><button class="step-btn" data-for="s-delta" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">A<small>x の振幅</small></span><span class="val" id="v-A"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-A" data-d="-1">−</button><input type="range" id="s-A" min="0.2" max="2" step="0.01"><button class="step-btn" data-for="s-A" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">B<small>y の振幅</small></span><span class="val" id="v-B"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-B" data-d="-1">−</button><input type="range" id="s-B" min="0.2" max="2" step="0.01"><button class="step-btn" data-for="s-B" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="gl">アニメーション</div>
+        <div class="btns"><button class="btn play" id="play-t"></button><button class="btn play" id="play-d"></button></div>
+        <div class="seg" data-key="speed" style="margin-top:6px"><button data-v="0.5">ゆっくり</button><button data-v="1">ふつう</button><button data-v="2">速い</button></div></div>
+    </div>
+  </div>
+
+  <div class="formula"><div class="main" id="formula"></div></div>
+
+  <div class="layout">
+    <div class="plot" id="plot"></div>
+    <div>
+      <div class="metrics" id="metrics"></div>
+      <div class="info-box" id="msg"></div>
+      <div class="note-box" id="ellipse" hidden></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { curve: "#1f77b4", full: "rgba(31,119,180,0.22)", pt: "#d62728", xw: "#ff7f0e", yw: "#2ca02c", proj: "rgba(0,0,0,0.35)" };
+  var S = UI.store("lissajous_v1", { A: 1, B: 1, a: 3, b: 2, delta: Math.PI / 2, speed: "1",
+    show: { waves: true, full: true, int: false } });
+  var PRESETS = [
+    ["1:1, δ=0（直線）", 1, 1, 0], ["1:1, δ=π/4（楕円）", 1, 1, Math.PI / 4], ["1:1, δ=π/2（円）", 1, 1, Math.PI / 2],
+    ["1:2（8 の字）", 1, 2, 0], ["2:1, δ=π/2（放物線）", 2, 1, Math.PI / 2], ["3:2", 3, 2, Math.PI / 2],
+    ["3:4", 3, 4, Math.PI / 4], ["5:4", 5, 4, Math.PI / 2],
+  ];
+  var t = 0, M = 2.25;   // 時刻 t と表示範囲
+
+  function P() { return { A: S.A, B: S.B, a: S.a, b: S.b, delta: S.delta }; }
+  function dText(d) { var f = TU.toFrac(d / Math.PI, 12); return f ? TU.piFracText(f[0], f[1]) : TU.minus(TU.fmtNum(d, 2)); }
+
+  function setupSliders() {
+    ["s-a", "s-b"].forEach(function (id) { $(id).step = S.show.int ? 1 : 0.01; $(id).min = S.show.int ? 1 : 0.5; });
+    if (S.show.int) { S.a = Math.max(1, Math.round(S.a)); S.b = Math.max(1, Math.round(S.b)); }
+    $("s-a").value = S.a; $("s-b").value = S.b; $("s-delta").value = S.delta; $("s-A").value = S.A; $("s-B").value = S.B;
+    document.querySelectorAll("[data-show]").forEach(function (c) { c.checked = !!S.show[c.dataset.show]; });
+    UI.syncSegs(S);
+  }
+
+  function draw() {
+    var p = P(), r = LJ.ratio(p.a, p.b), T = LJ.period(p.a, p.b);
+    $("v-a").textContent = TU.fmtNum(p.a, 2); $("v-b").textContent = TU.fmtNum(p.b, 2);
+    $("v-delta").textContent = dText(p.delta); $("v-A").textContent = TU.fmtNum(p.A, 2); $("v-B").textContent = TU.fmtNum(p.B, 2);
+    $("gen").innerHTML = tex("x = A\\sin(at + \\delta),\\ y = B\\sin bt");
+    $("formula").innerHTML = tex(LJ.formulaTex(p), true);
+
+    var Tshow = T && T <= 40 * Math.PI ? T : 12 * Math.PI;
+    var trailLen = Math.min(Tshow, 2 * Math.PI * 3);
+    var W = 2 * Math.PI;            // 波形を表示する時間の幅
+    var waves = S.show.waves;
+    var dm = waves ? [0.3, 1] : [0, 1];       // メインの図の位置
+    var L = UI.layout({ height: $("plot").clientHeight || 620, margin: { l: 36, r: 10, t: 24, b: 30 }, showlegend: false,
+      xaxis: UI.axis({ domain: dm, range: [-M, M], dtick: 1, anchor: "y", title: { text: "x", standoff: 2 } }),
+      yaxis: UI.axis({ domain: dm, range: [-M, M], dtick: 1, anchor: "x", scaleanchor: "x", title: { text: "y", standoff: 2 } }),
+    });
+    var data = [];
+    if (S.show.full) {
+      var fc = LJ.curve(p, 0, Tshow);
+      data.push(UI.lineTrace(fc.x, fc.y, "1 周分", C.full, { width: 1.5, extra: { hoverinfo: "skip" } }));
+    }
+    var tc = LJ.curve(p, t - trailLen, t);
+    data.push(UI.lineTrace(tc.x, tc.y, "軌跡", C.curve, { width: 2.6, extra: { hoverinfo: "skip" } }));
+    var pt = LJ.point(p, t);
+    data.push(UI.pointTrace([pt[0]], [pt[1]], "点 (x, y)", C.pt, 13));
+    // 振幅の枠（接する回数を数えるときの目安）
+    L.shapes.push({ type: "rect", xref: "x", yref: "y", x0: -p.A, x1: p.A, y0: -p.B, y1: p.B, line: { color: "rgba(0,0,0,0.25)", width: 1, dash: "dot" } });
+
+    if (waves) {
+      L.xaxis2 = UI.axis({ domain: dm, range: [-M, M], anchor: "y2", showticklabels: false, matches: "x" });
+      L.yaxis2 = UI.axis({ domain: [0, 0.24], range: [W, 0], anchor: "x2", showticklabels: false, zeroline: false, title: { text: "時間 →", standoff: 2, font: { size: 11 } } });
+      L.xaxis3 = UI.axis({ domain: [0, 0.24], range: [W, 0], anchor: "y3", showticklabels: false, zeroline: false, title: { text: "← 時間", standoff: 2, font: { size: 11 } } });
+      L.yaxis3 = UI.axis({ domain: dm, range: [-M, M], anchor: "x3", showticklabels: false, matches: "y" });
+      var n = 400, xw = { x: [], y: [] }, yw = { x: [], y: [] };
+      for (var i = 0; i < n; i++) {
+        var tau = W * i / (n - 1), q = LJ.point(p, t - tau);
+        xw.x.push(q[0]); xw.y.push(tau); yw.x.push(tau); yw.y.push(q[1]);
+      }
+      data.push(UI.lineTrace(xw.x, xw.y, "x(t)", C.xw, { width: 2.2, extra: { xaxis: "x2", yaxis: "y2", hoverinfo: "skip" } }));
+      data.push(UI.lineTrace(yw.x, yw.y, "y(t)", C.yw, { width: 2.2, extra: { xaxis: "x3", yaxis: "y3", hoverinfo: "skip" } }));
+      data.push(UI.pointTrace([pt[0]], [0], "", C.xw, 9, { xaxis: "x2", yaxis: "y2" }));
+      data.push(UI.pointTrace([0], [pt[1]], "", C.yw, 9, { xaxis: "x3", yaxis: "y3" }));
+      // 点から波形への投影線（グラフの外にはみ出す部分は表示されない）
+      data.push(UI.lineTrace([pt[0], pt[0]], [pt[1], -50], "", C.xw, { width: 1, dash: "dot", extra: { hoverinfo: "skip" } }));
+      data.push(UI.lineTrace([pt[0], -50], [pt[1], pt[1]], "", C.yw, { width: 1, dash: "dot", extra: { hoverinfo: "skip" } }));
+      data.push(UI.lineTrace([pt[0], pt[0]], [0, 50], "", C.xw, { width: 1, dash: "dot", extra: { xaxis: "x2", yaxis: "y2", hoverinfo: "skip" } }));
+      data.push(UI.lineTrace([0, 50], [pt[1], pt[1]], "", C.yw, { width: 1, dash: "dot", extra: { xaxis: "x3", yaxis: "y3", hoverinfo: "skip" } }));
+    }
+    Plotly.react("plot", data, L, UI.CONFIG);
+
+    // ---- 情報 ----
+    var items = [["a : b", r ? r[0] + " : " + r[1] : TU.fmtNum(p.a, 2) + " : " + TU.fmtNum(p.b, 2)]];
+    if (r) {
+      items.push(["1 周する時間 T", tex(T && TU.toFrac(T / Math.PI, 24) ? TU.angle(T / Math.PI, "rad").tex : "\\approx " + TU.fmtNum(T, 2))]);
+      items.push(["右の辺に接する回数", r[0]]);
+      items.push(["上の辺に接する回数", r[1]]);
+    } else {
+      items.push(["1 周する時間 T", "簡単な整数比でないので、なかなか閉じない"]);
+    }
+    $("metrics").innerHTML = items.map(function (m) { return '<div class="metric"><div class="ml">' + m[0] + '</div><div class="mv">' + m[1] + "</div></div>"; }).join("");
+    $("msg").innerHTML = r
+      ? "a : b = " + r[0] + " : " + r[1] + " のとき、点は時間 T ごとに同じ道をくり返します（閉じた図形）。"
+        + "点線の枠の <b>右の辺</b> に接する回数と <b>上の辺</b> に接する回数の比が a : b になるので、図形から振動数の比が読みとれます"
+        + "（オシロスコープで 2 つの信号の周波数を比べる方法）。"
+        + "（2:1, δ = π/2 の放物線のように、同じ道を行って戻る形では、端の点に 2 回来ても接する点は 1 つに見えるので注意。）"
+        + (S.show.int ? "" : "<br>a や b を少しだけずらす（例：1 : 1.02）と、図形がゆっくり回転するように変化していきます。")
+      : "a : b が簡単な整数比でないと、点はなかなか元の位置にもどらず、軌跡は枠の中をだんだん埋めていきます。";
+    var el = $("ellipse");
+    if (Math.abs(p.a - p.b) < 1e-9) {
+      el.hidden = false;
+      var yi = LJ.yIntercept(p);
+      el.innerHTML = "<b>a = b のとき（同じ振動数の 2 つの振動）</b>：図形は楕円（δ = 0, π では直線、A = B かつ δ = π/2 では円）。"
+        + "楕円が y 軸と交わる点の高さを " + tex("h") + " とすると " + tex("\\dfrac{h}{B} = |\\sin\\delta|") + "。"
+        + "いまは " + tex("h/B \\approx " + TU.fmtNum(yi / p.B, 3)) + "、" + tex("|\\sin\\delta| \\approx " + TU.fmtNum(Math.abs(Math.sin(p.delta)), 3))
+        + "。これで 2 つの振動の <b>位相差</b> を測れます。";
+    } else el.hidden = true;
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+
+  var playT = new UI.Player($("play-t"), function (dt) { t += dt * 1.2 * Number(S.speed); draw(); }, ["▶ 点を動かす", "⏸ 停止"]);
+  var playD = new UI.Player($("play-d"), function (dt) {
+    S.delta += dt * 0.5 * Number(S.speed);
+    if (S.delta > 2 * Math.PI) S.delta -= 2 * Math.PI;
+    $("s-delta").value = S.delta; draw();
+  }, ["▶ δ を変化させる", "⏸ 停止"]);
+
+  $("presets").innerHTML = PRESETS.map(function (q, i) { return '<button class="btn" data-i="' + i + '">' + q[0] + "</button>"; }).join("");
+  $("presets").querySelectorAll("button").forEach(function (b) {
+    b.addEventListener("click", function () { var q = PRESETS[Number(b.dataset.i)]; S.a = q[1]; S.b = q[2]; S.delta = q[3]; setupSliders(); redraw(); });
+  });
+  UI.bindSegs(S, function () { UI.syncSegs(S); redraw(); });
+  UI.bindRange("s-a", function (v) { S.a = v; redraw(); });
+  UI.bindRange("s-b", function (v) { S.b = v; redraw(); });
+  UI.bindRange("s-A", function (v) { S.A = v; redraw(); }, 0.1);
+  UI.bindRange("s-B", function (v) { S.B = v; redraw(); }, 0.1);
+  UI.bindRange("s-delta", function (v) {
+    var q = Math.PI / 12, r = Math.round(v / q) * q;
+    if (Math.abs(v - r) < 0.006) v = r;
+    S.delta = v; redraw();
+  }, Math.PI / 12);
+  document.querySelectorAll("[data-show]").forEach(function (c) {
+    c.addEventListener("change", function () { S.show[c.dataset.show] = c.checked; setupSliders(); redraw(); });
+  });
+  setupSliders(); draw();
+})();
+</script>
+</body>
+</html>

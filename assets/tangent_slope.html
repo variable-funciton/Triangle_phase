@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+#plot { height: 640px; }
+@media (max-width: 720px) { #plot { height: 540px; } }
+.big-m { font-size: 30px; font-weight: 700; color: var(--key); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>表示の設定</h3>
+    <div class="settings">
+      <div class="group"><div class="gl">関数</div>
+        <div class="seg" data-key="fn"><button data-v="sin">y = sin x</button><button data-v="cos">y = cos x</button></div></div>
+      <div class="group checks">
+        <label><input type="checkbox" data-show="triangle"> 傾きの三角形</label>
+        <label><input type="checkbox" data-show="secant"> 割線から近づける（h を使う）</label>
+        <label><input type="checkbox" data-show="answer"> 答え合わせ（<span id="ans-label"></span> を重ねる）</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h3>点 P の位置</h3>
+    <div class="params">
+      <div class="prm">
+        <div class="top"><span class="name">a<small>点 P の x 座標</small></span><span class="val" id="v-a"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-a" data-d="-1">−</button><input type="range" id="s-a" min="-3.1416" max="6.2832" step="0.01"><button class="step-btn" data-for="s-a" data-d="1">＋</button></div>
+      </div>
+      <div class="prm" id="h-box">
+        <div class="top"><span class="name">h<small>P と Q の x 座標の差</small></span><span class="val" id="v-h"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-h" data-d="-1">−</button><input type="range" id="s-h" min="0.01" max="2" step="0.01"><button class="step-btn" data-for="s-h" data-d="1">＋</button></div>
+      </div>
+    </div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn play" id="play"></button>
+      <div class="seg" data-key="speed"><button data-v="0.5">ゆっくり</button><button data-v="1">ふつう</button><button data-v="2">速い</button></div>
+      <button class="btn" id="clear">たまった点を消す</button>
+      <button class="btn" id="snap">a を π/6 きざみにそろえる</button>
+    </div>
+  </div>
+
+  <div class="formula">
+    <div class="main" id="formula"></div>
+    <div class="sub" id="formula-sub"></div>
+  </div>
+
+  <div class="plot" id="plot"></div>
+  <div class="info-box" id="msg"></div>
+  <details>
+    <summary>有名な角で傾きを調べた表</summary>
+    <div class="scroll-x" id="table"></div>
+  </details>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { f: "#1f77b4", tan: "#d62728", sec: "#9467bd", tri: "#2ca02c", dots: "#d62728", ans: "#ff7f0e" };
+  var S = UI.store("tangent_slope_v1", { fn: "sin", a: Math.PI / 6, h: 1, speed: "1",
+    show: { triangle: true, secant: false, answer: false } });
+  var LO = -Math.PI, HI = 2 * Math.PI;
+  var trail = [];       // たまった点 [a, 傾き]
+
+  function slopeAt(a) { return S.show.secant ? TS.secantSlope(S.fn, a, S.h) : TS.tangentSlope(S.fn, a); }
+  function addTrail(a) {
+    var m = slopeAt(a);
+    // 近すぎる点は入れない（ほぼ同じ a なら上書き）
+    for (var i = 0; i < trail.length; i++) if (Math.abs(trail[i][0] - a) < 0.004) { trail[i] = [a, m]; return; }
+    trail.push([a, m]);
+    if (trail.length > 3000) trail.shift();
+  }
+  function aText(a) {
+    var f = TU.toFrac(a / Math.PI, 12);
+    return f ? TU.piFracText(f[0], f[1]) : TU.minus(TU.fmtNum(a, 2));
+  }
+  function aTex(a) {
+    var f = TU.toFrac(a / Math.PI, 12);
+    return f ? TU.piFracTex(f[0], f[1]) : TU.fmtNum(a, 2);
+  }
+
+  function draw() {
+    var fn = S.fn, f = TS.F[fn], a = S.a, b = f(a), m = slopeAt(a), ans = TS.ANSWER[fn];
+    $("v-a").textContent = aText(a);
+    $("v-h").textContent = TU.fmtNum(S.h, 2);
+    $("h-box").style.visibility = S.show.secant ? "visible" : "hidden";
+    $("ans-label").textContent = "y = " + ans.text;
+
+    // ---- 式 ----
+    var mS = TU.fmtNum(m, 3);
+    if (S.show.secant) {
+      $("formula").innerHTML = tex("\\text{割線 PQ の傾き} = \\frac{\\" + fn + "(a+h) - \\" + fn + " a}{h} \\approx " + mS, true);
+    } else {
+      $("formula").innerHTML = tex("\\text{点 P}\\left(" + aTex(a) + ",\\ " + TU.exactValue(b, 3).tex + "\\right)\\ \\text{での接線の傾き}\\ \\ m \\approx " + mS, true);
+    }
+    $("formula-sub").innerHTML = S.show.answer
+      ? tex("\\text{答え合わせ：}\\ " + ans.tex.replace(/x/g, "a") + " = " + ans.tex.replace(/x/g, a < 0 ? "\\left(" + aTex(a) + "\\right)" : aTex(a)) + " " + (TU.exactValue(ans.f(a)).exact ? "= " : "\\approx ") + TU.exactValue(ans.f(a), 3).tex)
+      : tex("\\text{接線：}\\ y \\approx " + TU.fmtNum(TS.tangentSlope(fn, a), 3) + "\\left(x " + (a < 0 ? "+ " : "- ") + TU.fmtNum(Math.abs(a), 2) + "\\right) "
+          + (b < 0 ? "- " : "+ ") + TU.fmtNum(Math.abs(b), 3));
+
+    // ---- グラフ（上：元の関数、下：傾きをプロット） ----
+    var xs = TU.linspace(LO - 0.2, HI + 0.2, 600);
+    var tk = TU.ticks(-1, 2, "rad", 0.5);
+    var L = UI.layout({ height: $("plot").clientHeight || 640, margin: { l: 50, r: 14, t: 30, b: 40 }, showlegend: true,
+      xaxis: UI.axis({ range: [LO - 0.2, HI + 0.2], tickvals: tk.vals, ticktext: tk.texts, anchor: "y2", title: { text: "x" } }),
+      yaxis: UI.axis({ domain: [0.56, 1], range: [-1.7, 1.7], dtick: 0.5, title: { text: "y = " + fn + " x" } }),
+      yaxis2: UI.axis({ domain: [0, 0.44], range: [-1.7, 1.7], dtick: 0.5, title: { text: "傾き m" } }),
+    });
+    var data = [];
+    data.push(UI.lineTrace(xs, xs.map(f), "y = " + fn + " x", C.f, { width: 2.5 }));
+    // 接線（または割線）
+    var t = TS.lineSeg(a, b, S.show.secant ? m : TS.tangentSlope(fn, a), a - 1.6, a + 1.6 + (S.show.secant ? S.h : 0));
+    data.push(UI.lineTrace(t.x, t.y, S.show.secant ? "割線 PQ" : "接線", S.show.secant ? C.sec : C.tan, { width: 2 }));
+    if (S.show.secant) {
+      var tt = TS.lineSeg(a, b, TS.tangentSlope(fn, a), a - 1.6, a + 1.6);
+      data.push(UI.lineTrace(tt.x, tt.y, "接線（h → 0 のとき）", C.tan, { width: 1.2, dash: "dot" }));
+      data.push(UI.pointTrace([a + S.h], [f(a + S.h)], "Q", C.sec, 10));
+    }
+    data.push(UI.pointTrace([a], [b], "P", C.tan, 12));
+    if (S.show.triangle) {
+      var mm = S.show.secant ? m : TS.tangentSlope(fn, a);
+      data.push(UI.lineTrace([a, a + 1, a + 1], [b, b, b + mm], "傾きの三角形（右へ 1 進むと m 上がる）", C.tri, { width: 2.5, extra: { hoverinfo: "skip" } }));
+      L.annotations.push({ x: a + 0.5, y: b, text: "1", showarrow: false, yshift: mm >= 0 ? -10 : 10, font: { color: C.tri, size: 14 } });
+      L.annotations.push({ x: a + 1, y: b + mm / 2, text: "m = " + TU.minus(TU.fmtNum(mm, 2)), showarrow: false, xanchor: "left", xshift: 4, font: { color: C.tri, size: 14 } });
+    }
+    // 下：傾きのグラフ
+    if (S.show.answer) data.push(UI.lineTrace(xs, xs.map(ans.f), "y = " + ans.text + "（答え）", C.ans, { width: 2, dash: "dash", extra: { xaxis: "x", yaxis: "y2" } }));
+    var tr = trail.slice().sort(function (p, q) { return p[0] - q[0]; });
+    data.push({ x: tr.map(function (p) { return p[0]; }), y: tr.map(function (p) { return p[1]; }), xaxis: "x", yaxis: "y2", type: "scatter", mode: "markers",
+      name: "たまった点 (a, m)", marker: { color: C.dots, size: 4, opacity: 0.75 }, hovertemplate: "a = %{x:.2f}<br>m ≈ %{y:.3f}<extra></extra>" });
+    data.push(UI.pointTrace([a], [m], "いまの点 (a, m)", C.tan, 12, { xaxis: "x", yaxis: "y2" }));
+    // P から下のグラフへの縦の線
+    L.shapes.push({ type: "line", xref: "x", yref: "paper", x0: a, x1: a, y0: 0, y1: 1, line: { color: "rgba(214,39,40,0.35)", width: 1.2, dash: "dot" } });
+    Plotly.react("plot", data, L, UI.CONFIG);
+
+    // ---- メッセージ ----
+    var hint;
+    if (S.show.secant) hint = "h を小さくすると、割線 PQ はだんだん接線（赤い点線）に重なり、下にたまる点も " + tex("y = " + ans.tex) + " の形に近づきます。h が大きいと、形は似ているけれど左にずれたグラフになります。（h を変えると点は消えます）";
+    else if (trail.length < 30) hint = "▶ 再生 を押すか a のスライダーを動かすと、点 P が動き、そのときの接線の傾き m が下のグラフに点 (a, m) としてたまっていきます。どんな形が現れるでしょう？";
+    else hint = "たまった点はどんなグラフの形に見えますか？　予想したら「答え合わせ」にチェックを入れてみよう。"
+      + "<br>山の頂上・谷の底（接線が水平）では m = 0、" + (fn === "sin" ? "x = 0 では m = 1（原点の近くでは sin x ≈ x）" : "x = π/2 では m = −1") + " になっていることも確かめよう。";
+    $("msg").innerHTML = hint;
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+
+  function buildTable() {
+    var rows = TS.table(S.fn);
+    $("table").innerHTML = "<table><tr><th>a</th>" + rows.map(function (r) { return "<th>" + tex(TU.angle(r[0], "rad").tex) + "</th>"; }).join("") + "</tr>"
+      + "<tr><td>測った傾き m</td>" + rows.map(function (r) { return "<td>" + TU.minus(TU.fmtNum(r[1], 3)) + "</td>"; }).join("") + "</tr>"
+      + "<tr><td>" + tex(TS.ANSWER[S.fn].tex.replace("x", "a")) + "</td>" + rows.map(function (r) { return "<td>" + tex(r[2].tex) + "</td>"; }).join("") + "</tr></table>";
+  }
+
+  var player = new UI.Player($("play"), function (dt) {
+    var v = S.a + dt * 0.9 * Number(S.speed);
+    if (v > HI) v = LO;
+    S.a = v; $("s-a").value = v; addTrail(v); draw();
+  });
+
+  function sync() { UI.syncSegs(S); $("s-a").value = S.a; $("s-h").value = S.h;
+    document.querySelectorAll("[data-show]").forEach(function (c) { c.checked = !!S.show[c.dataset.show]; }); }
+
+  UI.bindSegs(S, function (key) { if (key === "fn") { trail = []; buildTable(); } sync(); redraw(); });
+  UI.bindRange("s-a", function (v) {
+    var q = Math.PI / 12, r = Math.round(v / q) * q;
+    if (Math.abs(v - r) < 0.006) v = r;           // π/12 の倍数の近くならぴったりにそろえる
+    S.a = v; addTrail(v); redraw();
+  }, Math.PI / 12);
+  UI.bindRange("s-h", function (v) { S.h = v; trail = []; redraw(); }, 0.05);
+  document.querySelectorAll("[data-show]").forEach(function (c) {
+    c.addEventListener("change", function () { S.show[c.dataset.show] = c.checked; if (c.dataset.show === "secant") trail = []; redraw(); });
+  });
+  $("clear").addEventListener("click", function () { trail = []; redraw(); });
+  $("snap").addEventListener("click", function () { S.a = Math.round(S.a / (Math.PI / 6)) * Math.PI / 6; $("s-a").value = S.a; addTrail(S.a); redraw(); });
+  sync(); buildTable(); addTrail(S.a); draw();
+})();
+</script>
+</body>
+</html>

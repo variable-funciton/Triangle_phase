@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+#plot { height: 470px; }
+@media (max-width: 720px) { #plot { height: 380px; } }
+.expansion { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin: 8px 0; overflow-x: auto; }
+.expansion .lbl { font-size: 13px; color: var(--muted); margin-bottom: 2px; }
+.expansion .eq { font-size: 18px; }
+.expansion.main .eq { font-size: 21px; color: var(--wave); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <h3>表示の設定</h3>
+    <div class="settings">
+      <div class="group"><div class="gl">関数</div>
+        <div class="seg" data-key="fn"><button data-v="sin">sin x</button><button data-v="cos">cos x</button></div></div>
+      <div class="group checks">
+        <label><input type="checkbox" data-show="band"> 近似のよい範囲（誤差 0.01 未満）を色づけ</label>
+        <label><input type="checkbox" data-show="prev"> 1 つ前の次数の近似も表示</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h3>パラメータ</h3>
+    <div class="params">
+      <div class="prm">
+        <div class="top"><span class="name">x₀<small>近似の中心（この点でぴったり合わせる）</small></span><span class="val" id="v-x0"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-x0" data-d="-1">−</button><input type="range" id="s-x0" min="-6.2832" max="6.2832" step="0.01"><button class="step-btn" data-for="s-x0" data-d="1">＋</button></div>
+      </div>
+      <div class="prm">
+        <div class="top"><span class="name">n<small>何次の多項式まで使うか</small></span><span class="val" id="v-n"></span></div>
+        <div class="row"><button class="step-btn" data-for="s-n" data-d="-1">−</button><input type="range" id="s-n" min="0" max="15" step="1"><button class="step-btn" data-for="s-n" data-d="1">＋</button></div>
+      </div>
+    </div>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn play" id="play-n"></button>
+      <button class="btn play" id="play-x0"></button>
+      <div class="seg" data-key="speed"><button data-v="0.5">ゆっくり</button><button data-v="1">ふつう</button><button data-v="2">速い</button></div>
+      <span class="hint">x₀ のスライダーは π/12 の倍数の近くでぴったりの値にそろいます</span>
+    </div>
+  </div>
+
+  <div class="plot" id="plot"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="expansion main"><div class="lbl" id="lbl-val"></div><div class="eq" id="eq-val"></div></div>
+  <details>
+    <summary>多項式の形をくわしく</summary>
+    <div class="expansion"><div class="lbl">x₀ を文字のまま書いた形（sin → cos → −sin → −cos → … のくり返しを k! で割る）</div><div class="eq" id="eq-sym"></div></div>
+    <div class="expansion"><div class="lbl">係数を小数にした形</div><div class="eq" id="eq-dec"></div></div>
+  </details>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex;
+  var C = { f: "#1f77b4", p: "#d62728", prev: "#ff7f0e", band: "rgba(44,160,44,0.12)", x0: "#2ca02c" };
+  var S = UI.store("taylor_v1", { fn: "sin", x0: 0, n: 3, speed: "1", show: { band: true, prev: false } });
+  var LO = -3 * Math.PI, HI = 3 * Math.PI, YR = 3;
+  var xs = TU.linspace(LO, HI, 1400);
+
+  function x0Text(x0) { var f = TU.toFrac(x0 / Math.PI, 12); return f ? TU.piFracText(f[0], f[1]) : TU.minus(TU.fmtNum(x0, 2)); }
+  function clip(v) { return Math.abs(v) > 60 ? null : v; }
+
+  function draw() {
+    var fn = S.fn, x0 = S.x0, n = S.n, f = TY.F[fn];
+    $("v-x0").textContent = x0Text(x0);
+    $("v-n").textContent = n + " 次";
+    var val = TY.valuedTex(fn, x0, n);
+    $("lbl-val").textContent = n + " 次までの多項式で近似（x₀ = " + x0Text(x0) + "）" + (val.exact ? "" : "　※ 係数は小数第 3 位までの近似");
+    $("eq-val").innerHTML = tex(val.tex, true);
+    $("eq-sym").innerHTML = tex(TY.symbolicTex(fn, n), true);
+    $("eq-dec").innerHTML = tex(TY.decimalTex(fn, x0, n), true);
+
+    var cs = TY.coeffs(fn, x0, n), gr = TY.goodRange(fn, x0, n, 0.01);
+    var probe = x0 + 1, err1 = Math.abs(TY.evalP(cs, x0, probe) - f(probe));
+    var probe2 = x0 + 2, err2 = Math.abs(TY.evalP(cs, x0, probe2) - f(probe2));
+    function errS(e) { return e < 1e-4 ? "0.0001 未満" : TU.fmtNum(e, 4); }
+    $("metrics").innerHTML = [
+      ["誤差 0.01 未満の範囲", TU.minus(TU.fmtNum(gr[0], 2)) + " 〜 " + TU.minus(TU.fmtNum(gr[1], 2))],
+      ["その幅", TU.fmtNum(gr[1] - gr[0], 2)],
+      ["x₀ + 1 での誤差", errS(err1)],
+      ["x₀ + 2 での誤差", errS(err2)],
+    ].map(function (m) { return '<div class="metric"><div class="ml">' + m[0] + '</div><div class="mv">' + m[1] + "</div></div>"; }).join("");
+
+    var tk = TU.ticks(-3, 3, "rad", 1);
+    var L = UI.layout({ height: $("plot").clientHeight || 470,
+      xaxis: UI.axis({ range: [LO, HI], tickvals: tk.vals, ticktext: tk.texts, title: { text: "x" } }),
+      yaxis: UI.axis({ range: [-YR, YR], dtick: 1, title: { text: "y" } }) });
+    if (S.show.band) {
+      L.shapes.push({ type: "rect", xref: "x", yref: "paper", x0: gr[0], x1: gr[1], y0: 0, y1: 1, fillcolor: C.band, line: { width: 0 }, layer: "below" });
+    }
+    L.shapes.push({ type: "line", x0: x0, x1: x0, yref: "paper", y0: 0, y1: 1, line: { color: C.x0, width: 1, dash: "dot" } });
+    var data = [UI.lineTrace(xs, xs.map(f), "y = " + fn + " x", C.f, { width: 3 })];
+    if (S.show.prev && n > 0) {
+      var cp = TY.coeffs(fn, x0, n - 1);
+      data.push(UI.lineTrace(xs, xs.map(function (x) { return clip(TY.evalP(cp, x0, x)); }), (n - 1) + " 次の近似", C.prev, { width: 1.8, dash: "dash" }));
+    }
+    data.push(UI.lineTrace(xs, xs.map(function (x) { return clip(TY.evalP(cs, x0, x)); }), n + " 次の近似多項式", C.p, { width: 2.5 }));
+    data.push(UI.pointTrace([x0], [f(x0)], "x₀ での点", C.x0, 12));
+    Plotly.react("plot", data, L, UI.CONFIG);
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+
+  var accN = 0, dir = 1;
+  var playN = new UI.Player($("play-n"), function (dt) {
+    accN += dt * Number(S.speed);
+    if (accN < 0.8) return;
+    accN = 0;
+    S.n = S.n >= 15 ? 0 : S.n + 1; $("s-n").value = S.n; draw();
+  }, ["▶ 次数を上げていく", "⏸ 停止"]);
+  var playX = new UI.Player($("play-x0"), function (dt) {
+    var v = S.x0 + dir * dt * 0.8 * Number(S.speed);
+    if (v > 2 * Math.PI) { v = 2 * Math.PI; dir = -1; }
+    if (v < -2 * Math.PI) { v = -2 * Math.PI; dir = 1; }
+    S.x0 = v; $("s-x0").value = v; draw();
+  }, ["▶ x₀ を動かす", "⏸ 停止"]);
+
+  function sync() { UI.syncSegs(S); $("s-x0").value = S.x0; $("s-n").value = S.n;
+    document.querySelectorAll("[data-show]").forEach(function (c) { c.checked = !!S.show[c.dataset.show]; }); }
+  UI.bindSegs(S, function () { sync(); redraw(); });
+  UI.bindRange("s-x0", function (v) {
+    var q = Math.PI / 12, r = Math.round(v / q) * q;
+    if (Math.abs(v - r) < 0.006) v = r;
+    S.x0 = v; redraw();
+  }, Math.PI / 12);
+  UI.bindRange("s-n", function (v) { S.n = Math.round(v); redraw(); }, 1);
+  document.querySelectorAll("[data-show]").forEach(function (c) {
+    c.addEventListener("change", function () { S.show[c.dataset.show] = c.checked; redraw(); });
+  });
+  sync(); draw();
+})();
+</script>
+</body>
+</html>
