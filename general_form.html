@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+  :root {
+    --ink: #262730; --muted: #6b6f76; --line: #d9dce1; --soft: #f5f7fa;
+    --wave: #1f77b4; --key: #d62728; --accent: #ff4b4b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #ffffff; color: var(--ink);
+    font-family: "Source Sans Pro", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif; font-size: 15px; }
+  .wrap { padding: 2px 4px 12px; }
+  .box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; margin-bottom: 12px; }
+  .box h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  .settings { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: flex-end; }
+  .group .gl { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; padding: 6px 12px; font: inherit; color: var(--ink); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--wave); color: #fff; }
+  .reset { margin-left: auto; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .reset:hover, .step-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .params { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; }
+  @media (max-width: 720px) { .params { grid-template-columns: 1fr; } }
+  .prm .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .prm .name { font-weight: 600; }
+  .prm .name small { font-weight: 400; color: var(--muted); margin-left: 4px; }
+  .prm .val { font-size: 18px; font-weight: 700; color: var(--wave); font-variant-numeric: tabular-nums; min-width: 4em; text-align: right; }
+  .prm .row { display: flex; align-items: center; gap: 6px; }
+  .prm input[type=range] { flex: 1; accent-color: var(--accent); height: 28px; }
+  .step-btn { width: 30px; height: 28px; border: 1px solid var(--line); background: #fff; border-radius: 6px; font-size: 16px; line-height: 1; cursor: pointer; }
+  .formula { text-align: center; padding: 14px 8px 6px; }
+  .formula .main { font-size: 30px; color: var(--wave); }
+  .formula .sub { font-size: 20px; color: var(--ink); margin-top: 4px; }
+  .formula .note { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  @media (max-width: 720px) { .formula .main { font-size: 22px; } .formula .sub { font-size: 16px; } }
+  .metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 6px 0 12px; }
+  @media (max-width: 720px) { .metrics { grid-template-columns: repeat(3, 1fr); } }
+  .metric { background: var(--soft); border-radius: 8px; padding: 6px 8px; text-align: center; }
+  .metric .ml { font-size: 12px; color: var(--muted); }
+  .metric .mv { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .tabs button { border: 0; background: none; font: inherit; padding: 8px 14px; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent; }
+  .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 4px 0; }
+  .checks label { cursor: pointer; white-space: nowrap; }
+  .plot { width: 100%; height: 470px; }
+  .hint { font-size: 13px; color: var(--muted); }
+  .compare-note { background: #fff4e5; border-left: 4px solid #ff7f0e; padding: 8px 12px; border-radius: 4px; margin: 6px 0; font-size: 14px; }
+  details { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+  summary { cursor: pointer; font-weight: 600; }
+  table { border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 4px 10px; text-align: center; }
+  th:first-child, td:first-child { text-align: left; color: var(--muted); }
+  .steplist { list-style: none; padding: 0; margin: 8px 0; }
+  .steplist li { padding: 4px 0; }
+  .steplist li.future { color: #b0b4ba; }
+  .steplist li.cur { font-weight: 600; }
+  .steprow { display: flex; align-items: center; gap: 10px; }
+  .steprow input { flex: 1; accent-color: var(--accent); }
+  .steplabels { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); padding: 0 2px; }
+  .stepformula { text-align: center; font-size: 22px; margin: 6px 0 0; }
+  .err { color: #b00020; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <!-- 囲み 1：表示の設定 -->
+  <div class="box">
+    <h3>表示の設定</h3>
+    <div class="settings">
+      <div class="group"><div class="gl">基本の関数</div>
+        <div class="seg" data-key="func"><button data-v="sin">sin x</button><button data-v="cos">cos x</button></div></div>
+      <div class="group"><div class="gl">角度の単位</div>
+        <div class="seg" data-key="unit"><button data-v="rad">弧度法</button><button data-v="deg">度数法</button></div></div>
+      <div class="group"><div class="gl">α の入れ方</div>
+        <div class="seg" data-key="mode"><button data-v="pi" id="mode-pi"></button><button data-v="dec" id="mode-dec"></button></div></div>
+      <button class="reset" id="reset">初期値に戻す</button>
+    </div>
+  </div>
+
+  <!-- 囲み 2：パラメータ -->
+  <div class="box">
+    <h3>パラメータ　<span id="gen-formula"></span></h3>
+    <div class="params">
+      <div class="prm"><div class="top"><span class="name">A<small>y 方向の倍率（振幅）</small></span><span class="val" id="v-A"></span></div>
+        <div class="row"><button class="step-btn" data-p="A" data-d="-1">−</button><input type="range" id="s-A" min="-3" max="3" step="0.01"><button class="step-btn" data-p="A" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">B<small>x 方向の倍率（周期 2π/B）</small></span><span class="val" id="v-B"></span></div>
+        <div class="row"><button class="step-btn" data-p="B" data-d="-1">−</button><input type="range" id="s-B" min="0.25" max="4" step="0.01"><button class="step-btn" data-p="B" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">α<small>x 方向の平行移動</small></span><span class="val" id="v-alpha"></span></div>
+        <div class="row"><button class="step-btn" data-p="alpha" data-d="-1">−</button><input type="range" id="s-alpha"><button class="step-btn" data-p="alpha" data-d="1">＋</button></div></div>
+      <div class="prm"><div class="top"><span class="name">β<small>y 方向の平行移動</small></span><span class="val" id="v-beta"></span></div>
+        <div class="row"><button class="step-btn" data-p="beta" data-d="-1">−</button><input type="range" id="s-beta" min="-2" max="2" step="0.01"><button class="step-btn" data-p="beta" data-d="1">＋</button></div></div>
+    </div>
+  </div>
+
+  <!-- 式（大きく）と特徴量 -->
+  <div class="formula">
+    <div class="main" id="formula"></div>
+    <div class="sub" id="formula-exp"></div>
+    <div class="note" id="formula-note"></div>
+  </div>
+  <div class="metrics" id="metrics"></div>
+
+  <div class="tabs">
+    <button data-tab="compare">① 重ねて比較</button>
+    <button data-tab="steps">② 段階的に変形</button>
+  </div>
+
+  <!-- ① 重ねて比較 -->
+  <div id="tab-compare">
+    <div class="checks">
+      <label><input type="checkbox" data-show="base"> <span id="lbl-base"></span> を表示</label>
+      <label><input type="checkbox" data-show="band"> 1周期の区間</label>
+      <label><input type="checkbox" data-show="range"> 最大値・最小値の線</label>
+      <label><input type="checkbox" data-show="keys"> キーポイントと矢印</label>
+      <label><input type="checkbox" data-show="compare"> Bx − α の形と比べる</label>
+    </div>
+    <div class="compare-note" id="compare-note" hidden></div>
+    <div class="plot" id="plot-main"></div>
+    <details>
+      <summary>キーポイント（1周期を4等分した点）の対応表</summary>
+      <p id="key-explain"></p>
+      <div id="key-table"></div>
+    </details>
+  </div>
+
+  <!-- ② 段階的に変形 -->
+  <div id="tab-steps" hidden>
+    <div class="steprow"><span class="hint">どこまで変形するか</span><input type="range" id="s-step" min="0" max="4" step="1"></div>
+    <div class="steplabels"><span>①</span><span>②</span><span>③</span><span>④</span><span>⑤</span></div>
+    <div class="stepformula" id="step-formula"></div>
+    <div class="plot" id="plot-steps" style="height:430px"></div>
+    <ol class="steplist" id="step-list"></ol>
+  </div>
+</div>
+
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (typeof Plotly === "undefined" || typeof katex === "undefined") {
+    document.getElementById("app").innerHTML =
+      '<div class="err">グラフの部品（Plotly.js / KaTeX）を読み込めませんでした。ネットワークを確認して、ページを再読み込みしてください。</div>';
+    return;
+  }
+  var M = GF.MINUS;
+  var COLORS = { base: "#9aa0a6", wave: "#1f77b4", key: "#d62728", band: "rgba(31,119,180,0.08)",
+    steps: ["#9aa0a6", "#2ca02c", "#ff7f0e", "#9467bd", "#1f77b4"], compare: "#ff7f0e", range: "#2ca02c" };
+  var MARKS = "①②③④⑤";
+  var DEFAULT = { func: "sin", unit: "rad", mode: "pi", A: 1, B: 1, alpha: 0, beta: 0,
+    show: { base: true, band: true, range: true, keys: false, compare: false }, tab: "compare", step: 4 };
+  var STORE = "gf_state_v2";
+  var S = JSON.parse(JSON.stringify(DEFAULT));
+  try {
+    var saved = JSON.parse(window.localStorage.getItem(STORE) || "null");
+    if (saved && typeof saved === "object") {
+      Object.keys(DEFAULT).forEach(function (k) { if (saved[k] !== undefined) S[k] = saved[k]; });
+      S.show = Object.assign({}, DEFAULT.show, saved.show || {});
+    }
+  } catch (e) { /* 保存できない環境では毎回初期値 */ }
+  function save() { try { window.localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+
+  function tex(s, display) { return katex.renderToString(s, { throwOnError: false, displayMode: !!display }); }
+  function $(id) { return document.getElementById(id); }
+  function wave() { return { func: S.func, A: S.A, B: S.B, alpha: S.alpha, beta: S.beta }; }
+  function ang(v) { return GF.angle(v, S.unit); }
+  function approx(o) { return (o.exact ? "" : "≈ ") + o.text; }
+
+  // ---------- α スライダー（入れ方と単位で目盛りが変わる） ----------
+  function alphaSpec() {
+    if (S.mode === "pi") return { min: -24, max: 24, step: 1, toPi: function (v) { return v / 12; }, fromPi: function (p) { return Math.round(p * 12); } };
+    if (S.unit === "rad") return { min: -628, max: 628, step: 1, toPi: function (v) { return v / 100 / Math.PI; }, fromPi: function (p) { return Math.round(p * Math.PI * 100); } };
+    return { min: -360, max: 360, step: 1, toPi: function (v) { return v / 180; }, fromPi: function (p) { return Math.round(p * 180); } };
+  }
+  function setupAlpha() {
+    var sp = alphaSpec(), el = $("s-alpha");
+    el.min = sp.min; el.max = sp.max; el.step = sp.step;
+    var v = Math.max(sp.min, Math.min(sp.max, sp.fromPi(S.alpha)));
+    el.value = v; S.alpha = sp.toPi(v);
+    $("mode-pi").textContent = S.unit === "rad" ? "π/12 きざみ" : "15° きざみ";
+    $("mode-dec").textContent = S.unit === "rad" ? "小数 0.01 きざみ" : "1° きざみ";
+  }
+  function syncControls() {
+    document.querySelectorAll(".seg").forEach(function (seg) {
+      seg.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", S[seg.dataset.key] === b.dataset.v); });
+    });
+    $("s-A").value = S.A; $("s-B").value = S.B; $("s-beta").value = S.beta;
+    setupAlpha();
+    document.querySelectorAll("[data-show]").forEach(function (c) { c.checked = !!S.show[c.dataset.show]; });
+    document.querySelectorAll(".tabs button").forEach(function (b) { b.classList.toggle("on", b.dataset.tab === S.tab); });
+    $("tab-compare").hidden = S.tab !== "compare";
+    $("tab-steps").hidden = S.tab !== "steps";
+    $("s-step").value = S.step;
+  }
+
+  // ---------- 軸の共通設定 ----------
+  function layout(lo, hi, ylim, height) {
+    var tk = GF.ticks(lo, hi, S.unit);
+    return {
+      height: height, margin: { l: 44, r: 16, t: 36, b: 40 }, template: "plotly_white",
+      paper_bgcolor: "#fff", plot_bgcolor: "#fff",
+      legend: { orientation: "h", yanchor: "bottom", y: 1.02, xanchor: "left", x: 0 },
+      hovermode: "closest", uirevision: "keep",
+      font: { family: "Source Sans Pro, Hiragino Kaku Gothic ProN, Noto Sans JP, sans-serif" },
+      xaxis: { range: [lo * Math.PI, hi * Math.PI], tickvals: tk.vals, ticktext: tk.texts, zeroline: true,
+        zerolinecolor: "black", zerolinewidth: 1.2, gridcolor: "rgba(0,0,0,0.08)", title: { text: "x" }, fixedrange: true },
+      yaxis: { range: [-ylim, ylim], zeroline: true, zerolinecolor: "black", zerolinewidth: 1.2,
+        gridcolor: "rgba(0,0,0,0.08)", dtick: ylim > 2 ? 1 : 0.5, title: { text: "y" }, fixedrange: true },
+      shapes: [], annotations: [],
+    };
+  }
+  function line(w, lo, hi, name, color, opt) {
+    opt = opt || {};
+    var s = GF.sample(w, lo, hi, 700);
+    return { x: s.x, y: s.y, name: name, mode: "lines", type: "scatter",
+      line: { color: color, width: opt.width || 2.5, dash: opt.dash || "solid" }, opacity: opt.opacity === undefined ? 1 : opt.opacity,
+      customdata: s.x.map(function (x) { return x / Math.PI; }),
+      hovertemplate: "x ≈ %{customdata:.3f}π<br>y = %{y:.3f}<extra>%{fullData.name}</extra>" };
+  }
+  function markers(pts, name, color, size) {
+    return { x: pts.map(function (p) { return p[0] * Math.PI; }), y: pts.map(function (p) { return p[1]; }),
+      name: name, mode: "markers", type: "scatter",
+      marker: { color: color, size: size || 10, line: { color: "white", width: 1 } },
+      text: pts.map(function (p) { return "(" + approx(ang(p[0])) + ", " + approx(GF.num(p[1])) + ")"; }),
+      hovertemplate: "%{text}<extra></extra>" };
+  }
+  function arrows(src, dst) {
+    var out = [];
+    src.forEach(function (p, i) {
+      var q = dst[i];
+      if (Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9) return;
+      out.push({ x: q[0] * Math.PI, y: q[1], ax: p[0] * Math.PI, ay: p[1], xref: "x", yref: "y", axref: "x", ayref: "y",
+        text: "", showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5, arrowcolor: COLORS.key, opacity: 0.75 });
+    });
+    return out;
+  }
+
+  // ---------- 式と特徴量 ----------
+  function renderFormula(w) {
+    $("formula").innerHTML = tex(GF.formulaTex(w, S.unit), true);
+    if (GF.needsExpanded(w, S.unit)) {
+      var eq = GF.expandedIsExact(w, S.unit) ? "y = " : "y \\approx ";
+      $("formula-exp").innerHTML = tex(eq + GF.formulaTex(w, S.unit, "expanded").slice(4));
+      $("formula-note").textContent = GF.expandedIsExact(w, S.unit) ? "かっこの中を展開した形" : "かっこの中を展開した形（Bα は小数第 2 位までの近似）";
+    } else {
+      $("formula-exp").innerHTML = ""; $("formula-note").textContent = "";
+    }
+    $("gen-formula").innerHTML = tex("y = A\\" + S.func + " B(x - \\alpha) + \\beta");
+    $("lbl-base").textContent = "y = " + S.func + " x";
+
+    var items = [
+      ["振幅 |A|", approx(GF.num(GF.amplitude(w)))],
+      ["周期 2π/B", approx(ang(GF.period(w)))],
+      ["最大値", approx(GF.num(GF.yMax(w)))],
+      ["最小値", approx(GF.num(GF.yMin(w)))],
+      ["x 方向の移動 α", approx(ang(w.alpha))],
+      ["y 方向の移動 β", approx(GF.num(w.beta))],
+    ];
+    $("metrics").innerHTML = items.map(function (it) {
+      return '<div class="metric"><div class="ml">' + it[0] + '</div><div class="mv">' + it[1] + "</div></div>";
+    }).join("");
+    $("v-A").textContent = GF.num(S.A).text;
+    $("v-B").textContent = GF.num(S.B).text;
+    $("v-alpha").textContent = ang(S.alpha).text;
+    $("v-beta").textContent = GF.num(S.beta).text;
+  }
+
+  // ---------- ① 重ねて比較 ----------
+  function renderCompare(w) {
+    var base = { func: S.func, A: 1, B: 1, alpha: 0, beta: 0 };
+    var wrong = Object.assign({}, w, { alpha: w.alpha / w.B });      // A f(Bx − α) + β
+    var list = [w, base]; if (S.show.compare) list.push(wrong);
+    var r = GF.xRange(list), lo = r[0], hi = r[1], ylim = GF.yLimit(list);
+    var L = layout(lo, hi, ylim, 470), data = [];
+    if (S.show.base) data.push(line(base, lo, hi, "y = " + S.func + " x", COLORS.base, { dash: "dash", width: 2 }));
+    data.push(line(w, lo, hi, GF.formulaText(w, S.unit), COLORS.wave, { width: 3 }));
+    if (S.show.compare) {
+      data.push(line(wrong, lo, hi, GF.formulaText(w, S.unit, "phase"), COLORS.compare, { dash: "dash", width: 2.5 }));
+    }
+    if (S.show.keys) {
+      if (S.show.base) {
+        data.push(markers(GF.baseKeyPoints(S.func), "元のキーポイント", COLORS.base, 8));
+        L.annotations = L.annotations.concat(arrows(GF.baseKeyPoints(S.func), GF.keyPoints(w)));
+      }
+      data.push(markers(GF.keyPoints(w), "変形後のキーポイント", COLORS.key, 10));
+    }
+    if (S.show.band && GF.fmtNum(w.A) !== "0") {
+      L.shapes.push({ type: "rect", xref: "x", yref: "paper", x0: w.alpha * Math.PI, x1: (w.alpha + GF.period(w)) * Math.PI,
+        y0: 0, y1: 1, fillcolor: COLORS.band, line: { width: 0 }, layer: "below" });
+      L.annotations.push({ x: w.alpha * Math.PI, y: 1, xref: "x", yref: "paper", xanchor: "left", yanchor: "top",
+        showarrow: false, font: { size: 12, color: COLORS.wave },
+        text: "1周期: " + approx(ang(w.alpha)) + " 〜 " + approx(ang(w.alpha + GF.period(w))) });
+    }
+    if (S.show.range) {
+      [[GF.yMax(w), "最大値"], [GF.yMin(w), "最小値"]].forEach(function (it) {
+        L.shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, y0: it[0], y1: it[0], line: { color: COLORS.range, width: 1.2, dash: "dot" } });
+        L.annotations.push({ xref: "paper", x: 1, y: it[0], xanchor: "right", yanchor: it[1] === "最大値" ? "bottom" : "top",
+          showarrow: false, font: { size: 12, color: COLORS.range }, text: it[1] + " " + approx(GF.num(it[0])) });
+      });
+      if (GF.fmtNum(w.beta) !== "0") {
+        L.shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, y0: w.beta, y1: w.beta, line: { color: COLORS.compare, width: 1, dash: "dash" } });
+        L.annotations.push({ xref: "paper", x: 0, y: w.beta, xanchor: "left", yanchor: "bottom", showarrow: false,
+          font: { size: 12, color: COLORS.compare }, text: "中心線 y = " + GF.num(w.beta).text });
+      }
+    }
+    Plotly.react("plot-main", data, L, { displayModeBar: false, responsive: true });
+
+    // Bx − α の形との比較の説明
+    var note = $("compare-note");
+    if (S.show.compare) {
+      note.hidden = false;
+      if (GF.bIsOne(w.B) || GF.alphaIsZero(w.alpha, S.unit)) {
+        note.innerHTML = "B ≠ 1 かつ α ≠ 0 にすると、2 つのグラフの違いが見えます（いまは同じグラフ）。";
+      } else {
+        var a = ang(w.alpha), aB = ang(w.alpha / w.B);
+        var wrongTex = GF.formulaTex(w, S.unit, "phase");
+        note.innerHTML = "青の " + tex(GF.formulaTex(w, S.unit)) + " は <b>x 方向に " + tex(a.tex) + "</b> の移動。<br>"
+          + "オレンジの " + tex(wrongTex) + " は B でくくると x 方向に "
+          + tex("\\dfrac{\\alpha}{B} " + (aB.exact ? "=" : "\\approx") + " " + aB.tex) + " の移動です（後期課題6 の位相移動型でよくある間違い）。";
+      }
+    } else {
+      note.hidden = true;
+    }
+
+    // キーポイントの対応表
+    $("key-explain").innerHTML = "元のグラフで " + tex("x_0") + " にあった点は、変形後に "
+      + tex("x = \\alpha + \\dfrac{x_0}{B}") + "、" + tex("y = A\\,y_0 + \\beta") + " に移ります。";
+    var bk = GF.baseKeyPoints(S.func), kp = GF.keyPoints(w);
+    var rows = [
+      ["元の " + tex("x_0"), bk.map(function (p) { return tex(ang(p[0]).tex); })],
+      ["元の " + tex("y_0"), bk.map(function (p) { return tex(GF.num(p[1]).tex); })],
+      ["変形後の " + tex("x"), kp.map(function (p) { var o = ang(p[0]); return tex((o.exact ? "" : "\\approx ") + o.tex); })],
+      ["変形後の " + tex("y"), kp.map(function (p) { var o = GF.num(p[1]); return tex((o.exact ? "" : "\\approx ") + o.tex); })],
+    ];
+    $("key-table").innerHTML = "<table><tr><th></th>" + [1, 2, 3, 4, 5].map(function (k) { return "<th>点" + k + "</th>"; }).join("")
+      + "</tr>" + rows.map(function (r) { return "<tr><td>" + r[0] + "</td>" + r[1].map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; }).join("")
+      + "</table>";
+  }
+
+  // ---------- ② 段階的に変形 ----------
+  function renderSteps(w) {
+    var st = GF.steps(w), k = S.step;
+    var r = GF.xRange(st), lo = r[0], hi = r[1], ylim = GF.yLimit(st);
+    var L = layout(lo, hi, ylim, 430), data = [];
+    for (var i = 0; i <= k; i++) {
+      var opt = i === k ? { width: 3.2 } : i === k - 1 ? { width: 2, dash: "dash" } : { width: 1.5, opacity: 0.3 };
+      data.push(line(st[i], lo, hi, MARKS[i] + " " + GF.formulaText(st[i], S.unit), COLORS.steps[i], opt));
+    }
+    if (k > 0) {
+      data.push(markers(GF.keyPoints(st[k - 1]), "1つ前の点", COLORS.base, 8));
+      L.annotations = arrows(GF.keyPoints(st[k - 1]), GF.keyPoints(st[k]));
+    }
+    data.push(markers(GF.keyPoints(st[k]), "現在の点", COLORS.key, 10));
+    Plotly.react("plot-steps", data, L, { displayModeBar: false, responsive: true });
+    $("step-formula").innerHTML = '<span style="color:' + COLORS.steps[k] + '">' + MARKS[k] + "　" + tex(GF.formulaTex(st[k], S.unit)) + "</span>";
+
+    var invB = GF.num(1 / w.B), per = ang(GF.period(w));
+    var desc = [
+      ["基本形 " + tex("y = \\" + S.func + " x") + "（周期 " + tex(S.unit === "rad" ? "2\\pi" : "360^\\circ") + "、振幅 " + tex("1") + "）", true],
+      [tex("x") + " 軸方向に " + tex("\\dfrac{1}{B} " + (invB.exact ? "=" : "\\approx") + " " + invB.tex) + " 倍 → 周期が "
+        + tex((per.exact ? "" : "\\approx ") + per.tex) + " になる", !GF.bIsOne(w.B)],
+      [tex("x") + " 軸方向に " + tex("\\alpha = " + ang(w.alpha).tex) + " だけ平行移動", !GF.alphaIsZero(w.alpha, S.unit)],
+      [tex("y") + " 軸方向に " + tex("A = " + GF.num(w.A).tex) + " 倍 → 振幅 " + tex(GF.num(Math.abs(w.A)).tex)
+        + (w.A < 0 && GF.fmtNum(w.A) !== "0" ? "（" + tex("A < 0") + " なので " + tex("x") + " 軸に関して上下反転）" : ""), GF.fmtNum(w.A) !== "1"],
+      [tex("y") + " 軸方向に " + tex("\\beta = " + GF.num(w.beta).tex) + " だけ平行移動", GF.fmtNum(w.beta) !== "0"],
+    ];
+    $("step-list").innerHTML = desc.map(function (d, i) {
+      var cls = i === k ? "cur" : i > k ? "future" : "";
+      return '<li class="' + cls + '">' + (i === k ? "👉 " : "") + "<b>" + MARKS[i] + "</b> " + d[0]
+        + (d[1] ? "" : "（このパラメータでは変化なし）") + "　→　" + tex(GF.formulaTex(st[i], S.unit)) + "</li>";
+    }).join("");
+  }
+
+  var pending = false;
+  function render() {
+    if (pending) return;
+    pending = true;
+    window.requestAnimationFrame(function () {
+      pending = false;
+      var w = wave();
+      renderFormula(w);
+      if (S.tab === "compare") renderCompare(w); else renderSteps(w);
+      save();
+    });
+  }
+
+  // ---------- イベント ----------
+  document.querySelectorAll(".seg").forEach(function (seg) {
+    seg.addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      S[seg.dataset.key] = b.dataset.v;
+      syncControls(); render();
+    });
+  });
+  $("s-A").addEventListener("input", function (e) { S.A = Number(e.target.value); render(); });
+  $("s-B").addEventListener("input", function (e) { S.B = Number(e.target.value); render(); });
+  $("s-beta").addEventListener("input", function (e) { S.beta = Number(e.target.value); render(); });
+  $("s-alpha").addEventListener("input", function (e) { S.alpha = alphaSpec().toPi(Number(e.target.value)); render(); });
+  $("s-step").addEventListener("input", function (e) { S.step = Number(e.target.value); render(); });
+  document.querySelectorAll(".step-btn").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var el = $(b.dataset.p === "alpha" ? "s-alpha" : "s-" + b.dataset.p);
+      var step = b.dataset.p === "alpha" ? Number(el.step) : (b.dataset.p === "B" ? 0.05 : 0.1);
+      var v = Math.round((Number(el.value) + Number(b.dataset.d) * step) * 100) / 100;
+      v = Math.max(Number(el.min), Math.min(Number(el.max), v));
+      el.value = v; el.dispatchEvent(new Event("input"));
+    });
+  });
+  document.querySelectorAll("[data-show]").forEach(function (c) {
+    c.addEventListener("change", function () { S.show[c.dataset.show] = c.checked; render(); });
+  });
+  document.querySelectorAll(".tabs button").forEach(function (b) {
+    b.addEventListener("click", function () { S.tab = b.dataset.tab; syncControls(); render(); });
+  });
+  $("reset").addEventListener("click", function () {
+    var keep = { tab: S.tab };
+    S = JSON.parse(JSON.stringify(DEFAULT)); S.tab = keep.tab;
+    syncControls(); render();
+  });
+
+  syncControls();
+  render();
+})();
+</script>
+</body>
+</html>
