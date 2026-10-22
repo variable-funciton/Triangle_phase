@@ -112,6 +112,31 @@ with st.container(border=True):
     st.caption("関連: 後期課題4〜6（周期・位相）・課題7（2倍角の公式）")
     st.page_link("views/lissajous.py", label="ページを開く", icon="➡️")
 
+st.markdown("#### 学科別の応用")
+st.caption("それぞれの学科の専門につながる三角関数の使われ方。どの学科の学生が見てもかまいません。")
+DEPTS = [
+    ("学科共通", [("views/ferris.py", "🎡 観覧車の高さ", "一般形のパラメータ＝半径・周期・中心の高さ。高さ H 以上の時間"),
+                  ("views/seasons.py", "🌡️ 季節の変化", "実際の気温に sin を合わせる。昼の長さの 1 年の変化")]),
+    ("機械", [("views/crank.py", "⚙️ クランク機構", "回転→往復運動。余弦定理でピストンの位置"),
+              ("views/rotation.py", "🛞 回転と弧度法", "弧の長さ rθ、rpm と角速度、歯車・ベルト"),
+              ("views/incline.py", "📦 斜面と力の分解", "mg sin θ と mg cos θ、摩擦角 tan θ = μ")]),
+    ("電気", [("views/ac.py", "🔌 交流と三角関数", "50/60 Hz、実効値 100 V と最大値 141 V"),
+              ("views/three_phase.py", "⚡ 三相交流", "120° ずれた 3 つの sin の和が 0"),
+              ("views/ac_power.py", "💡 電力と力率", "積和の公式で平均の電力 VI cos φ")]),
+    ("化学", [("views/molecule.py", "🧪 分子の形と結合角", "余弦定理で原子間の距離。メタンの 109.5°"),
+              ("views/bragg.py", "💎 X 線回折", "2d sin θ = nλ で結晶の原子の間隔")]),
+    ("都市", [("views/shadow.py", "🏢 日影と建物の間隔", "南中高度と影の長さ H / tan h"),
+              ("views/survey.py", "📏 測量", "仰角で高さ、正弦定理で川幅、トラバース"),
+              ("views/slope.py", "⛰️ 勾配の表し方", "%・‰・寸勾配はどれも tan θ")]),
+]
+dcols = st.columns(len(DEPTS))
+for col, (dept, pages) in zip(dcols, DEPTS):
+    with col, st.container(border=True):
+        st.markdown(f"**{dept}**")
+        for path, label, desc in pages:
+            st.page_link(path, label=label)
+            st.caption(desc)
+
 st.markdown("#### 発展（逆関数・微分への入り口）")
 c5, c6, c7 = st.columns(3)
 with c5:
