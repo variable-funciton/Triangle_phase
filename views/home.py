@@ -103,6 +103,45 @@ with st.container(border=True):
     st.caption("関連: 後期課題1〜5（三角関数の定義・グラフ）・課題9〜10（等差・等比数列）")
     st.page_link("views/spring.py", label="ページを開く", icon="➡️")
 
+with st.container(border=True):
+    st.subheader("➰ 媒介変数表示とリサージュ図形")
+    st.markdown(
+        r"$x = A\sin(at + \delta),\ y = B\sin bt$ で動く点の軌跡。振動数の比 $a : b$ と位相差 $\delta$ を"
+        "スライダーで連続的に変え、横・縦の波形と図形の関係を見る。オシロスコープでの周波数・位相差の測定にも。"
+    )
+    st.caption("関連: 後期課題4〜6（周期・位相）・課題7（2倍角の公式）")
+    st.page_link("views/lissajous.py", label="ページを開く", icon="➡️")
+
+st.markdown("#### 発展（逆関数・微分への入り口）")
+c5, c6, c7 = st.columns(3)
+with c5:
+    with st.container(border=True):
+        st.subheader("↩️ 逆三角関数と主値")
+        st.markdown(
+            r"$y = \sin x$ を $y = x$ で折り返して $\arcsin x$ を作る。なぜ範囲（主値）を制限するのか、"
+            "三角方程式の解と主値の関係を見る。"
+        )
+        st.caption("関連: 後期課題3・6（三角方程式）")
+        st.page_link("views/inverse_trig.py", label="ページを開く", icon="➡️")
+with c6:
+    with st.container(border=True):
+        st.subheader("📐 接線の傾きと cos x")
+        st.markdown(
+            r"$\sin x$ のグラフ上を動く接線の傾きを点で打っていくと、$\cos x$ のグラフが現れる。"
+            "割線から接線へ近づける様子も。"
+        )
+        st.caption("微分の入り口（公式は使わない）")
+        st.page_link("views/tangent_slope.py", label="ページを開く", icon="➡️")
+with c7:
+    with st.container(border=True):
+        st.subheader("🧮 テイラー展開")
+        st.markdown(
+            r"$\sin x,\ \cos x$ を $x = x_0$ のまわりで多項式で近似。次数を上げると重なる範囲が広がる様子と、"
+            "展開した式を表示する。"
+        )
+        st.caption("微分の入り口（電卓の中の計算のしくみ）")
+        st.page_link("views/taylor.py", label="ページを開く", icon="➡️")
+
 st.divider()
 with st.expander("使い方のヒント"):
     st.markdown(
