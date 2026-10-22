@@ -34,6 +34,29 @@ PAGES = {
         st.Page("views/spring.py", title="バネの単振動と波", icon="〰️", url_path="spring"),
         st.Page("views/lissajous.py", title="媒介変数表示とリサージュ図形", icon="➰", url_path="lissajous"),
     ],
+    "学科共通の応用": [
+        st.Page("views/ferris.py", title="観覧車の高さ", icon="🎡", url_path="ferris"),
+        st.Page("views/seasons.py", title="季節の変化（気温・昼の長さ）", icon="🌡️", url_path="seasons"),
+    ],
+    "機械系のための三角関数": [
+        st.Page("views/crank.py", title="クランク機構", icon="⚙️", url_path="crank"),
+        st.Page("views/rotation.py", title="回転と弧度法（車輪・歯車・ベルト）", icon="🛞", url_path="rotation"),
+        st.Page("views/incline.py", title="斜面と力の分解（摩擦角）", icon="📦", url_path="incline"),
+    ],
+    "電気系のための三角関数": [
+        st.Page("views/ac.py", title="交流と三角関数", icon="🔌", url_path="ac"),
+        st.Page("views/three_phase.py", title="三相交流", icon="⚡", url_path="three_phase"),
+        st.Page("views/ac_power.py", title="交流の電力と力率", icon="💡", url_path="ac_power"),
+    ],
+    "化学系のための三角関数": [
+        st.Page("views/molecule.py", title="分子の形と結合角", icon="🧪", url_path="molecule"),
+        st.Page("views/bragg.py", title="X 線回折（ブラッグの法則）", icon="💎", url_path="bragg"),
+    ],
+    "都市系のための三角関数": [
+        st.Page("views/shadow.py", title="日影と建物の間隔", icon="🏢", url_path="shadow"),
+        st.Page("views/survey.py", title="測量（高さ・川幅・トラバース）", icon="📏", url_path="survey"),
+        st.Page("views/slope.py", title="勾配の表し方（%・‰・寸）", icon="⛰️", url_path="slope"),
+    ],
     "発展（逆関数・微分への入り口）": [
         st.Page("views/inverse_trig.py", title="逆三角関数と主値", icon="↩️", url_path="inverse_trig"),
         st.Page("views/tangent_slope.py", title="接線の傾きと cos x", icon="📐", url_path="tangent_slope"),
