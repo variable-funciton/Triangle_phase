@@ -16,6 +16,10 @@ Streamlit Community Cloud で公開する、三角関数の学習用 Web アプ�
 | 斜方投射 | 初速度と角度を変えて投げるアニメーション、5 つの角度の同時比較、飛距離 L(θ) のグラフ、2倍角の公式で 45° が最大になることの説明、詳しい解説（運動の分解・軌跡の式・最高点・よくある間違い・練習問題） | 後期課題7（応用） |
 | モンキーハンティング | (a, b) を狙って投げると同時に B を自由落下させるアニメーション、½gt² のずれの可視化、当たる条件 v₀ > √(g(a²+b²)/2b) のグラフ、狙いのずれ・放す時刻のずれで外れる様子、詳しい解説（三角比・重ね合わせ・相対運動・当たる条件・練習問題） | 後期課題1〜3（応用） |
 | バネの単振動と波 | 等速円運動の影としての単振動、動摩擦（振幅が等差数列で減り止まる）・速さに比例する抵抗（等比数列）のアニメーション、横波・縦波の伝わり方、縦波の横波表示、詳しい解説（円運動の影から ω = √(k/m)・エネルギー・摩擦で等差数列になる理由・波の式・練習問題） | 後期課題1〜5・9・10（応用） |
+| 媒介変数表示とリサージュ図形 | `x = A sin(at + δ), y = B sin bt` の軌跡。a, b, δ, A, B を連続的に変えるスライダー、点を動かす・δ を変化させるアニメーション、x(t)・y(t) の波形の投影、a : b と辺に接する回数、a = b のときの位相差の読み取り、よく出る形のボタン | 後期課題4〜7（応用） |
+| 逆三角関数と主値 | arcsin・arccos・arctan を元の関数の y = x に関する折り返しとして表示、主値の範囲の色づけ、対応する点 P(θ, k)・Q(k, θ)、制限しないで折り返すと関数にならない様子、三角方程式の解（範囲を選んで一覧）と一般解 | 後期課題3・6（発展） |
+| 接線の傾きと cos x | sin x（cos x）上を動く点の接線と傾きの三角形、傾きを点 (a, m) としてためると cos x（−sin x）が現れるアニメーション、割線 PQ から h → 0 で接線に近づける、有名角での傾きの表 | 発展（微分の入り口） |
+| テイラー展開（多項式で近似） | x₀ と次数 n のスライダー、次数を上げる・x₀ を動かすアニメーション、展開した式（有名角ではぴったりの値、文字のままの形、小数の係数の形）、誤差 0.01 未満の範囲 | 発展（微分の入り口） |
 
 ## ファイル構成
 
@@ -33,8 +37,14 @@ views/                各ページ
   projectile.py       斜方投射
   monkey.py           モンキーハンティング
   spring.py           バネの単振動と波
+  lissajous.py        媒介変数表示とリサージュ図形
+  inverse_trig.py     逆三角関数と主値
+  tangent_slope.py    接線の傾きと cos x
+  taylor.py           テイラー展開
 explain/              物理のページの「詳しい解説」タブ（projectile.py・monkey.py・spring.py）
-assets/               ブラウザ側で動く部品（general_form.html・general_form_core.js）
+assets/               ブラウザ側で動く画面（スライダーを動かすとグラフが連続的に変わるページ）
+  common.css / common_core.js / common_ui.js   共通の見た目・計算・部品
+  <名前>.html / <名前>_core.js                  各ページの画面と計算（general_form, inverse_trig, tangent_slope, taylor, lissajous）
 utils/                共通部品
   formulas.py         公式の一覧（表示用 LaTeX と数値確認用の関数）・三角形の計算
   angles.py           π の分数・度数の表示（π/2, −3π/4, 90° など）
@@ -46,6 +56,7 @@ utils/                共通部品
   projectile.py       斜方投射の計算（滞空時間・最高点・飛距離）
   monkey.py           モンキーハンティングの計算（命中判定・最小の初速度）
   oscillation.py      単振動（摩擦・抵抗あり）と波の計算
+  widget.py           assets/ の画面をページに埋め込む
   plotting.py         Plotly 描画の共通部品
 tests/test_utils.py   計算部分のテスト
 requirements.txt / packages.txt（日本語フォント、PDF 保存用の Chromium）
@@ -71,6 +82,7 @@ python -m tests.test_fourier     # フーリエ級数のテスト
 python -m tests.test_oscillation # 単振動と波のテスト
 python -m tests.test_formulas    # 公式まとめのテスト
 node tests/test_general_form_js.js  # 一般形ページ（JavaScript）のテスト
+node tests/test_widgets_js.js       # 逆三角関数・接線・テイラー・リサージュ（JavaScript）のテスト
 ```
 
 ## ページの追加方法
@@ -79,3 +91,8 @@ node tests/test_general_form_js.js  # 一般形ページ（JavaScript）のテ�
 2. `streamlit_app.py` の `PAGES` に `st.Page("views/unit_circle.py", title="…")` を 1 行追加する
 
 `st.set_page_config` は `streamlit_app.py` で一度だけ呼ぶので、各ページでは呼ばないこと。
+
+スライダーをドラッグしている間もグラフを動かしたいページは、`assets/<名前>.html`（と `<名前>_core.js`）を作り、
+ページからは `from utils.widget import render` → `render("<名前>", height=…)` で埋め込む。
+HTML の中の `/*__CSS__*/`・`/*__COMMON__*/`・`/*__CORE__*/` が共通部品と計算のファイルに置きかわる。
+Plotly.js と KaTeX は cdn.jsdelivr.net から読み込む。

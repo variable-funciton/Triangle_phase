@@ -32,6 +32,12 @@ PAGES = {
         st.Page("views/fourier.py", title="三角関数の足し合わせ（フーリエ級数）", icon="🎼", url_path="fourier"),
         st.Page("views/monkey.py", title="モンキーハンティング", icon="🐒", url_path="monkey"),
         st.Page("views/spring.py", title="バネの単振動と波", icon="〰️", url_path="spring"),
+        st.Page("views/lissajous.py", title="媒介変数表示とリサージュ図形", icon="➰", url_path="lissajous"),
+    ],
+    "発展（逆関数・微分への入り口）": [
+        st.Page("views/inverse_trig.py", title="逆三角関数と主値", icon="↩️", url_path="inverse_trig"),
+        st.Page("views/tangent_slope.py", title="接線の傾きと cos x", icon="📐", url_path="tangent_slope"),
+        st.Page("views/taylor.py", title="テイラー展開（多項式で近似）", icon="🧮", url_path="taylor"),
     ],
 }
 
