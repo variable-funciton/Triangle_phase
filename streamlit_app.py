@@ -14,18 +14,22 @@ PAGES = {
     ],
     "基礎知識": [
         st.Page("views/basics.py", title="三角比・三角関数の公式まとめ", icon="📚", url_path="basics"),
+        st.Page("views/ex_basics.py", title="演習（基礎）", icon="✏️", url_path="ex_basics"),
     ],
     "三角関数のグラフ": [
         st.Page("views/general_form.py", title="一般形 y = A sin B(x − α) + β", icon="🌊",
                 url_path="general_form"),
         st.Page("views/phase_shift.py", title="sin と cos の位相差", icon="🔁", url_path="phase_shift"),
+        st.Page("views/ex_graph.py", title="演習（グラフ）", icon="✏️", url_path="ex_graph"),
     ],
     "グラフの変換と合成": [
         st.Page("views/tent_map.py", title="テントマップの変換と合成", icon="⛺", url_path="tent_map"),
+        st.Page("views/ex_transform.py", title="演習（変換と合成）", icon="✏️", url_path="ex_transform"),
     ],
     "加法定理の応用": [
         st.Page("views/synthesis.py", title="三角関数の合成", icon="🧭", url_path="synthesis"),
         st.Page("views/product_sum.py", title="積和・和積の公式", icon="🔀", url_path="product_sum"),
+        st.Page("views/ex_addition.py", title="演習（加法定理の応用）", icon="✏️", url_path="ex_addition"),
     ],
     "三角関数の応用": [
         st.Page("views/projectile.py", title="斜方投射（45° で最も遠くへ）", icon="🏀", url_path="projectile"),
@@ -33,10 +37,12 @@ PAGES = {
         st.Page("views/monkey.py", title="モンキーハンティング", icon="🐒", url_path="monkey"),
         st.Page("views/spring.py", title="バネの単振動と波", icon="〰️", url_path="spring"),
         st.Page("views/lissajous.py", title="媒介変数表示とリサージュ図形", icon="➰", url_path="lissajous"),
+        st.Page("views/ex_physics.py", title="演習（物理への応用）", icon="✏️", url_path="ex_physics"),
     ],
     "学科共通の応用": [
         st.Page("views/ferris.py", title="観覧車の高さ", icon="🎡", url_path="ferris"),
         st.Page("views/seasons.py", title="季節の変化（気温・昼の長さ）", icon="🌡️", url_path="seasons"),
+        st.Page("views/ex_applied.py", title="演習（学科別の応用）", icon="✏️", url_path="ex_applied"),
     ],
     "機械系のための三角関数": [
         st.Page("views/crank.py", title="クランク機構", icon="⚙️", url_path="crank"),
@@ -61,6 +67,7 @@ PAGES = {
         st.Page("views/inverse_trig.py", title="逆三角関数と主値", icon="↩️", url_path="inverse_trig"),
         st.Page("views/tangent_slope.py", title="接線の傾きと cos x", icon="📐", url_path="tangent_slope"),
         st.Page("views/taylor.py", title="テイラー展開（多項式で近似）", icon="🧮", url_path="taylor"),
+        st.Page("views/ex_advanced.py", title="演習（発展）", icon="✏️", url_path="ex_advanced"),
     ],
 }
 

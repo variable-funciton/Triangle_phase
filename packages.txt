@@ -1,3 +1,6 @@
 fonts-ipaexfont-gothic
 fonts-noto-cjk
 chromium
+texlive-lang-japanese
+texlive-latex-recommended
+texlive-pictures

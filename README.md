@@ -34,6 +34,31 @@ Streamlit Community Cloud で公開する、三角関数の学習用 Web アプ�
 | 【都市】測量 | 仰角で高さ（tan）、川幅（正弦定理）、トラバース測量（方位角と Δx = L cos a、Δy = L sin a、閉合誤差） | 後期課題1〜3 |
 | 【都市】勾配の表し方 | %・‰・寸勾配・比と tan θ、角度とパーセントが比例しないこと、斜距離と水平距離 | 後期課題1〜3 |
 
+学科別の応用ページには、それぞれ「🔗 参考リンク・関連ページ」（公的機関・辞典・大学や高専の講義資料へのリンクと、このアプリの関連ページ）を付けている。
+
+## 演習（各単元の練習問題）
+
+「応用数学ラボ」（applied-mathematics リポジトリ）と同じしくみの演習ページを、各単元の最後に置いている。
+
+| ページ | 問題の型（基本 / 標準） | ファイル |
+|---|---|---|
+| 演習（基礎） | 度数法⇔弧度法、有名角の値、扇形、相互関係 / 負の角の値、正弦定理、余弦定理、加法定理、2倍角 | `exercises/basics.py` |
+| 演習（グラフ） | 周期、最大値・最小値、三角方程式、角の変換 / 平行移動の量、グラフから式（図あり）、三角不等式 | `exercises/graph.py` |
+| 演習（変換と合成） | 合成関数の値、漸化式 / 変換したグラフの頂点、合成のくり返し | `exercises/transform.py` |
+| 演習（加法定理の応用） | 合成、積和、和積 / 合成と最大・最小、区間での最大・最小、積和・和積で値 | `exercises/addition.py` |
+| 演習（物理への応用） | 飛距離、滞空時間、単振動の周期、波、リサージュ / 最高点、モンキーハンティング | `exercises/physics.py` |
+| 演習（学科別の応用） | 【共通】【機械】【電気】【化学】【都市】の 16 の型（学科でしぼれる） | `exercises/applied.py` |
+| 演習（発展） | 逆三角関数の値、接線の傾き、テイラー展開の係数 / arcsin(sin θ)、テイラー展開で近似値 | `exercises/advanced.py` |
+
+- 難易度と問題の型を選び、4 択で解く。答えを選ぶと正誤と、誤答なら間違えやすい点（`why`）が出る。ヒントは 1 段ずつ。
+- 「セット番号」が同じなら同じ問題が出る。「同じ型でもう一問」で数値だけを変えた類題になる。
+- 表示中の問題を LaTeX 一式（`数学IB演習.tex` / `数学IB演習-Ans.tex` + `problems.tex` / `answers.tex`）の zip でダウンロードできる。
+  年度・科目名・クラスの行は `exercises/core.py` の `NENDO`・`SUBJECT`・`CLASS_LINE` で変える。
+- 学生用 PDF（問題 → 解答・解説）はサーバーで uplatex + dvipdfmx を使って作る。`packages.txt` に日本語 LaTeX を入れてある
+  （初回のデプロイは数分長くかかる）。LaTeX がない環境では、代わりに印刷用ページ（.html）を出す。
+- 問題を増やすときは、`exercises/*.py` に生成関数（`random.Random` を受け取り `Problem` を返す）を書いて `REGISTRY` に登録する。
+  誤答は典型的な間違いから作り、`why` にその誤答を選んだときの指摘を書く。`python -m tests.test_exercises` で全部の型を確かめられる。
+
 ## ファイル構成
 
 ```
@@ -63,6 +88,7 @@ explain/              物理のページの「詳しい解説」タブ（project
 assets/               ブラウザ側で動く画面（スライダーを動かすとグラフが連続的に変わるページ）
   common.css / common_core.js / common_ui.js   共通の見た目・計算・部品
   <名前>.html / <名前>_core.js                  各ページの画面と計算（ページのファイル名と同じ名前）
+exercises/            演習（core.py：画面・LaTeX・PDF、fig.py：図、各単元の問題生成）
 utils/                共通部品
   formulas.py         公式の一覧（表示用 LaTeX と数値確認用の関数）・三角形の計算
   angles.py           π の分数・度数の表示（π/2, −3π/4, 90° など）
@@ -102,6 +128,7 @@ python -m tests.test_formulas    # 公式まとめのテスト
 node tests/test_general_form_js.js  # 一般形ページ（JavaScript）のテスト
 node tests/test_widgets_js.js       # 逆三角関数・接線・テイラー・リサージュ（JavaScript）のテスト
 node tests/test_applied_js.js       # 学科別の応用ページ（JavaScript）のテスト
+python -m tests.test_exercises      # 演習の問題生成のテスト
 ```
 
 ## ページの追加方法
