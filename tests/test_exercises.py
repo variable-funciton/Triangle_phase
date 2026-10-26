@@ -66,6 +66,15 @@ def check_values(t, p):
     elif k == "slope" and t.name == "接線の傾き":
         fn = math.cos if m["fn"] == "sin" else (lambda x: -math.sin(x))
         near(v, fn(math.radians(m["deg"])), 1e-9)
+    elif k in ("add_value", "add_value2"):
+        fn = {"sin": math.sin, "cos": math.cos, "tan": math.tan}[m["fn"]]
+        near(v, fn(math.radians(m["deg"])), 1e-9)
+    elif k == "add_from":
+        sa, ca, sb, cb = (float(F(m[x])) for x in ("sa", "ca", "sb", "cb"))
+        near(sa * sa + ca * ca, 1); near(sb * sb + cb * cb, 1)
+        al, be = math.atan2(sa, ca), math.atan2(sb, cb)
+        ang = al + be if m["op"] == "+" else al - be
+        near(v, (math.sin if m["fn"] == "sin" else math.cos)(ang), 1e-9)
     elif k == "compose":
         pass  # 下の個別テストで確かめる
 
@@ -114,6 +123,14 @@ def test_equation_solutions():
                 x = int(mm.group(4) or 1) * math.pi
             near(fn(x), k, 1e-9)
             assert 0 <= x < 2 * math.pi
+
+
+def test_div_q3():
+    from exercises.addition import div_q3
+    from utils.exact import Q236
+    x = div_q3(Q236(1, 0, 1, 0), Q236(1, 0, -1, 0))      # (1+√3)/(1−√3) = −2 − √3
+    near(float(x), (1 + math.sqrt(3)) / (1 - math.sqrt(3)))
+    assert x == Q236(-2, 0, -1, 0)
 
 
 def test_compose_values():
