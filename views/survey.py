@@ -41,3 +41,11 @@ with st.expander("📝 練習問題"):
 2. $AC = \frac{50\sin 60^\circ}{\sin 130^\circ} \approx 56.53$ m、川幅 $= 56.53\sin 70^\circ \approx 53.1$ m
 3. $\Delta x = 100\cos 30^\circ \approx 86.6$ m（北へ）、$\Delta y = 100\sin 30^\circ = 50$ m（東へ）"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [国土地理院「三角点の役割」](https://www.gsi.go.jp/sokuchikijun/sankaku-role.html)：地図や測量の基準になる三角点の役割
+- [国土地理院 中部地方測量部「基準点とは」](https://www.gsi.go.jp/chubu/profile-kijunten-kijunten.html)：電子基準点・三角点・水準点など、位置と高さの基準"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/basics.py', label='公式まとめ（正弦定理・余弦定理）', icon="➡️")

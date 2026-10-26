@@ -42,3 +42,11 @@ with st.expander("📝 練習問題"):
 2. 平行：$2\times 9.8\times\sin 30^\circ = 9.8$ N、垂直：$2\times 9.8\times\cos 30^\circ = 9.8\sqrt{3} \approx 16.97$ N
 3. $\tan 30^\circ \approx 0.577 > 0.4$ なのですべる。$a = 9.8(0.5 - 0.4\times 0.866) \approx 1.50$ m/s²"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [コトバンク「摩擦」](https://kotobank.jp/word/%E6%91%A9%E6%93%A6)：摩擦係数・摩擦角（物体がすべりだす直前の傾きの角）の解説"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/projectile.py', label='斜方投射（速度の分解）', icon="➡️")
+    st.page_link('views/basics.py', label='公式まとめ（三角比の定義）', icon="➡️")

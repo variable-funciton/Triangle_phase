@@ -49,3 +49,11 @@ with st.expander("📝 練習問題"):
 2. $d = \sqrt{3}\times 0.131 \approx 0.227$ nm（$\cos 120^\circ = -\frac{1}{2}$ より $d^2 = 3a^2$）
 3. $\cos 180^\circ = -1$ より $d^2 = 4a^2$、$d = 2a = 0.232$ nm（一直線なので単純に 2 倍）"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [京都大学 OCW「無機化学」第 10 回（PDF）](https://ocw.kyoto-u.ac.jp/wp-content/uploads/2021/03/2010_mukikagaku-1_10.pdf)：原子価殻電子対反発則（VSEPR）で分子の形を考える。大学で学ぶ内容"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/basics.py', label='公式まとめ（余弦定理）', icon="➡️")
+    st.page_link('views/inverse_trig.py', label='逆三角関数（arccos(−1/3)）', icon="➡️")

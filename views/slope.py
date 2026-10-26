@@ -42,3 +42,11 @@ with st.expander("📝 練習問題"):
 2. $\frac{1}{12} \approx 8.3\%$、$\theta \approx 4.8^\circ$
 3. $\theta \approx 5.71^\circ$ なので、高さ $200\sin 5.71^\circ \approx 19.9$ m、水平距離 $200\cos 5.71^\circ \approx 199.0$ m"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [国土交通省「建築物バリアフリー設計のガイドラインの改正に関する講習会」（2021 年）](https://www.mlit.go.jp/report/press/house05_hh_000873.html)：傾斜路（スロープ）の勾配などを定める「建築設計標準」の改正（令和 3 年 3 月）の説明"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/basics.py', label='公式まとめ（三角比・tan）', icon="➡️")
+    st.page_link('views/inverse_trig.py', label='逆三角関数（θ = arctan(勾配)）', icon="➡️")

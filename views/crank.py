@@ -48,3 +48,11 @@ with st.expander("📝 練習問題"):
 2. $x = 0 + \sqrt{144 - 16} = \sqrt{128} = 8\sqrt{2} \approx 11.31$ cm。単振動では 12 cm なので、約 0.69 cm ずれる。
 3. $x = 4\times\frac{1}{2} + \sqrt{144 - 16\times\frac{3}{4}} = 2 + \sqrt{132} \approx 13.49$ cm"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [東京理科大学「機構学」講義資料 第 1 章 機械と機構（PDF）](https://www.rs.noda.tus.ac.jp/nog/documents/kikougaku/kikou02.pdf)：ピストン・クランク機構を例に、機構の基本（リンクと対偶）を説明"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/basics.py', label='公式まとめ（正弦定理・余弦定理）', icon="➡️")
+    st.page_link('views/spring.py', label='バネの単振動', icon="➡️")

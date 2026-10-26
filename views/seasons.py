@@ -42,3 +42,12 @@ with st.expander("📝 練習問題"):
 2. 太陽からの熱で地面や海が温まるのに時間がかかるため（グラフでは $\alpha$ が約 1 か月遅れる）。
 3. $A \approx 2.4$ 時間。夏至は約 $12 + 2.4 = 14.4$ 時間（実際の日の出〜日の入りは屈折などで約 14 時間半）。"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [気象庁「過去の気象データ検索」](https://ds.data.jma.go.jp/obd/stats/etrn/index.php)：各地の平年値・月ごとの気温。他の都市のデータで試すときに
+- [国立天文台 暦計算室「太陽系天体の出入りと南中」](https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/riseset.cgi)：日付と場所を指定して日の出・日の入り・南中の時刻と高度を計算できる"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/synthesis.py', label='三角関数の合成（いちばん合う値の求め方）', icon="➡️")
+    st.page_link('views/general_form.py', label='一般形のグラフ', icon="➡️")

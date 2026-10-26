@@ -43,3 +43,13 @@ with st.expander("📝 練習問題"):
 2. $T = \frac{1}{60}$ s $\approx 16.7$ ms、$\omega = 120\pi \approx 377$ rad/s
 3. $100\pi\times 0.0025 = \frac{\pi}{4}$ なので $v = 141\sin\frac{\pi}{4} \approx 99.7$ V（$\approx 100$ V）"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [コトバンク「交流」](https://kotobank.jp/word/%E4%BA%A4%E6%B5%81-63363)：辞典・百科事典の「交流（電流）」の解説
+- [コトバンク「実効値」](https://kotobank.jp/word/%E5%AE%9F%E5%8A%B9%E5%80%A4-74045)：瞬時値の 2 乗の平均の平方根。正弦波では最大値の 1/√2
+- [経済産業省 エネルギー教育サイトの教材「エネルギーと技術」（PDF）](https://energy-kyoiku.meti.go.jp/assets/114/m_energy_p48-51.pdf)：東日本 50 Hz・西日本 60 Hz と周波数変換所。なぜ統一されなかったのか調べてみよう"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/general_form.py', label='一般形のグラフ', icon="➡️")
+    st.page_link('views/spring.py', label='単振動（等速円運動の影）', icon="➡️")

@@ -46,3 +46,11 @@ with st.expander("📝 練習問題"):
 2. 左辺 $= \sin\theta + \frac{1}{2}\sin\theta + \frac{\sqrt{3}}{2}\cos\theta = \frac{3}{2}\sin\theta + \frac{\sqrt{3}}{2}\cos\theta = \sqrt{3}\left(\frac{\sqrt{3}}{2}\sin\theta + \frac{1}{2}\cos\theta\right) = \sqrt{3}\sin(\theta + 30^\circ)$
 3. $115\times\sqrt{3} \approx 199$ V（三相 200 V）"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [大阪公立大学工業高等専門学校「電気回路 I」第 25 回 対称三相交流回路（PDF）](https://www2-kawakami.ct.osakafu-u.ac.jp/omu-content/uploads/sites/1161/Lecture_Data/Electric_Circuit_I/01_Lecture/25_lecture_electric_circuit_I.pdf)：高専の電気回路の講義資料。三相交流を使う理由、Y 結線・Δ 結線"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/synthesis.py', label='三角関数の合成（線間電圧 √3 sin(θ + 30°)）', icon="➡️")
+    st.page_link('views/product_sum.py', label='積和・和積の公式', icon="➡️")

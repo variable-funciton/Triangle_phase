@@ -9,6 +9,21 @@ st.markdown(
 )
 
 with st.container(border=True):
+    st.subheader("✏️ 演習（各単元の練習問題）")
+    st.markdown(
+        "各単元の最後に「演習」のページがあります。難易度（基本／標準）と問題の型を選ぶと、数値を変えた 4 択の類題が何度でも作れます。"
+        "答えを選ぶと正誤と、まちがえたときはまちがえやすい点が表示されます。ヒントは 1 段ずつ、解答・解説も見られます。"
+        "「セット番号」が同じなら同じ問題が出ます。紙で解きたいときは LaTeX 一式や PDF（問題 → 解答・解説）をダウンロードできます。"
+    )
+    ex_cols = st.columns(4)
+    for i, (path, label) in enumerate([
+        ("views/ex_basics.py", "基礎"), ("views/ex_graph.py", "グラフ"), ("views/ex_transform.py", "変換と合成"),
+        ("views/ex_addition.py", "加法定理の応用"), ("views/ex_physics.py", "物理への応用"), ("views/ex_applied.py", "学科別の応用"),
+        ("views/ex_advanced.py", "発展"),
+    ]):
+        ex_cols[i % 4].page_link(path, label=f"演習（{label}）", icon="✏️")
+
+with st.container(border=True):
     st.subheader("📚 三角比・三角関数の公式まとめ（基礎知識）")
     st.markdown(
         "有名角の度数法・弧度法と三角関数の値、ラジアンと扇形、相互関係、正弦定理・余弦定理、"

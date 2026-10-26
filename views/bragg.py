@@ -42,3 +42,11 @@ with st.expander("📝 練習問題"):
 2. $d = \frac{0.154}{2\sin 20^\circ} \approx 0.225$ nm
 3. $\sin\theta = \frac{n\lambda}{2d} > 1$ となり、$\sin\theta \le 1$ をみたす $\theta$ がないから。"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [コトバンク「ブラッグ条件」](https://kotobank.jp/word/%E3%81%B6%E3%82%89%E3%81%A4%E3%81%90%E6%9D%A1%E4%BB%B6-3217773)：2d sin θ = nλ。1912 年にブラッグ父子が導いた"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/product_sum.py', label='積和・和積の公式（2 つの波の和）', icon="➡️")
+    st.page_link('views/inverse_trig.py', label='逆三角関数（θ = arcsin(nλ/2d)）', icon="➡️")

@@ -42,3 +42,12 @@ with st.expander("📝 練習問題"):
 2. $90 - 43.1 - 23.4 = 23.5^\circ$。$\frac{1}{\tan 23.5^\circ} \approx 2.3$ 倍
 3. $\frac{20}{\tan 30.9^\circ} \approx 33.5$ m 以上"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [国立天文台 暦計算室「太陽系天体の出入りと南中」](https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/riseset.cgi)：日付と場所を指定して、太陽の南中時刻・南中高度を計算できる
+- [大田区「日影規制」](https://www.city.ota.tokyo.jp/seikatsu/sumaimachinami/kenchiku/tatemono_tyuuikisei/hikagekisei.html)：中高層の建物が近くの住宅地に落とす日影の時間を制限するしくみ（自治体の説明）"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/basics.py', label='公式まとめ（三角比）', icon="➡️")
+    st.page_link('views/seasons.py', label='季節の変化（昼の長さ）', icon="➡️")

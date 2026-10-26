@@ -42,3 +42,11 @@ with st.expander("📝 練習問題"):
 2. 250 W → 500 W で 2 倍
 3. $A = \omega t$、$B = \omega t - \varphi$ とすると $A + B = 2\omega t - \varphi$、$A - B = \varphi$ なので、公式からそのまま得られる。"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [コトバンク「力率」](https://kotobank.jp/word/%E5%8A%9B%E7%8E%87-148472)：有効電力と皮相電力の比。電圧と電流の位相差の cos
+- [J-Net21（中小企業基盤整備機構）「力率の改善方法について教えてください。」](https://j-net21.smrj.go.jp/solution/qa/energyeff/Q1232.html)：工場などでコンデンサを入れて力率を 1 に近づける方法と、電気料金への効果"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/product_sum.py', label='積和・和積の公式', icon="➡️")

@@ -43,3 +43,10 @@ with st.expander("📝 練習問題"):
 2. $1200\times\frac{15}{45} = 400$ rpm（反対向き）
 3. 弧の長さが半径と等しくなるときの中心角（約 57.3°）"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.markdown(
+        """- [コトバンク「ラジアン」](https://kotobank.jp/word/%E3%83%A9%E3%82%B8%E3%82%A2%E3%83%B3-147143)：弧の長さが半径に等しいときの中心角。辞典・百科事典の解説"""
+    )
+    st.caption("外部サイトのリンクは 2026 年 10 月に確認したものです。")
+    st.page_link('views/basics.py', label='公式まとめ（ラジアンと扇形）', icon="➡️")

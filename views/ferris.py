@@ -47,3 +47,7 @@ with st.expander("📝 練習問題"):
 2. $55 - 50\cos\theta = 80$ ⇔ $\cos\theta = -\frac{1}{2}$ ⇔ $\theta = \frac{2\pi}{3}$。$t = 16\times\frac{1}{3} = \frac{16}{3} \approx 5.33$ 分後
 3. $\frac{2\pi}{3} \le \theta \le \frac{4\pi}{3}$ の間なので、$16\times\frac{1}{3} = \frac{16}{3} \approx 5.33$ 分間"""
         )
+
+with st.expander("🔗 参考リンク・関連ページ"):
+    st.page_link('views/general_form.py', label='一般形 y = A sin B(x − α) + β', icon="➡️")
+    st.page_link('views/inverse_trig.py', label='逆三角関数と主値（cos θ = c をみたす θ）', icon="➡️")
