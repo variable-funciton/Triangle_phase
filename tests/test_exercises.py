@@ -125,6 +125,14 @@ def test_equation_solutions():
             assert 0 <= x < 2 * math.pi
 
 
+def test_addition_both_units():
+    """加法定理の値の問題は、度数法と弧度法の両方が出る"""
+    for mod, key in [(addition, "add_value"), (addition, "add_value2"), (basics, "addition")]:
+        t = [t for t in mod.REGISTRY if t.key == key][0]
+        sts = [build(t, rng_for(s, 0, 0, key)).statement for s in range(60)]
+        assert any(r"\pi" in x for x in sts) and any(r"^\circ" in x for x in sts), key
+
+
 def test_div_q3():
     from exercises.addition import div_q3
     from utils.exact import Q236
