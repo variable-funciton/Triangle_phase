@@ -161,7 +161,7 @@ for col, (dept, pages) in zip(dcols, DEPTS):
             st.page_link(path, label=label)
             st.caption(desc)
 
-st.markdown("#### 発展（逆関数・微分への入り口）")
+st.markdown("#### 発展（逆関数・微分・球面への入り口）")
 c5, c6, c7 = st.columns(3)
 with c5:
     with st.container(border=True):
@@ -190,6 +190,25 @@ with c7:
         )
         st.caption("微分の入り口（電卓の中の計算のしくみ）")
         st.page_link("views/taylor.py", label="ページを開く", icon="➡️")
+c8, c9 = st.columns(2)
+with c8:
+    with st.container(border=True):
+        st.subheader("🌐 球面座標と緯度・経度")
+        st.markdown(
+            r"極座標 $(r, \theta)$ を空間に広げた球面座標と、地球の緯度・経度。"
+            "直角三角形の cos・sin を 2 回使って $(x, y, z)$ に直し、2 都市の最短距離（大円）を求める。"
+        )
+        st.caption("加法定理・余角の公式の応用")
+        st.page_link("views/spherical_coords.py", label="ページを開く", icon="➡️")
+with c9:
+    with st.container(border=True):
+        st.subheader("🔺 球面三角形（球面三角法）")
+        st.markdown(
+            "地球儀の上の三角形。角の和は 180° より大きく、その超過分が面積になる（ジラールの定理）。"
+            "球面の余弦法則を、加法定理の証明と同じ方法で導く。"
+        )
+        st.caption("参考：国土地理院時報 132（2019）")
+        st.page_link("views/spherical_triangle.py", label="ページを開く", icon="➡️")
 
 st.divider()
 with st.expander("使い方のヒント"):
