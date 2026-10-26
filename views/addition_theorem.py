@@ -8,12 +8,11 @@ import math
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.exact import cos_deg, sin_deg
 
 st.title("加法定理とその証明")
 st.markdown(
     r"2 つの角の和・差の三角関数を、それぞれの角の三角関数で表す公式が **加法定理** です。"
-    r"$\sin 75^\circ = \sin(45^\circ + 30^\circ)$ のように、有名角の組み合わせで表せる角の値を求められます。"
+    r"$\sin 75^\circ = \sin(45^\circ + 30^\circ)$、$\sin\frac{5\pi}{12} = \sin\left(\frac{\pi}{4} + \frac{\pi}{6}\right)$ のように、有名角の組み合わせで表せる角の値を求められます。"
     "合成・積和・和積・2 倍角など、この単元の公式はすべて加法定理から導かれます。"
 )
 
@@ -137,18 +136,6 @@ $$\tan(\alpha + \beta) = \frac{\sin\alpha\cos\beta + \cos\alpha\sin\beta}{\cos\a
 """
 )
 
-# ---------------- 例題 ----------------
-st.subheader("例題：sin 75° = sin(45° + 30°)")
-st.markdown(
-    rf"""
-$$\sin 75^\circ = \sin(45^\circ + 30^\circ) = \sin 45^\circ\cos 30^\circ + \cos 45^\circ\sin 30^\circ
-= \frac{{\sqrt{{2}}}}{{2}}\cdot\frac{{\sqrt{{3}}}}{{2}} + \frac{{\sqrt{{2}}}}{{2}}\cdot\frac{{1}}{{2}} = {sin_deg(75).latex()}$$
-
-$$\cos 15^\circ = \cos(45^\circ - 30^\circ) = \cos 45^\circ\cos 30^\circ + \sin 45^\circ\sin 30^\circ = {cos_deg(15).latex()}$$
-
-$$\tan 75^\circ = \tan(45^\circ + 30^\circ) = \frac{{1 + \frac{{1}}{{\sqrt{{3}}}}}}{{1 - 1\cdot\frac{{1}}{{\sqrt{{3}}}}}} = \frac{{\sqrt{{3}} + 1}}{{\sqrt{{3}} - 1}} = 2 + \sqrt{{3}}$$
-"""
-)
-st.info("この形の問題は「演習（加法定理の応用）」の「加法定理で値を求める」「加法定理の公式」などで練習できます。"
+st.info("sin 75° = sin(45° + 30°) のように値を求める問題は、「演習（加法定理の応用）」の「加法定理で値を求める」「加法定理の公式」などで練習できます（度数法・弧度法の両方）。"
         "合成・積和・和積の公式のページでは、加法定理から導かれる公式を扱います。")
 st.page_link("views/ex_addition.py", label="演習（加法定理の応用）へ", icon="✏️")
