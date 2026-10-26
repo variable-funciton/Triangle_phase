@@ -302,16 +302,19 @@ def g_addition(rng):
         formula = rf"\cos({p}^\circ{op}{q}^\circ)=\cos{p}^\circ\cos{q}^\circ{mop}\sin{p}^\circ\sin{q}^\circ"
     assert val == (sin_deg(deg) if fn == "sin" else cos_deg(deg))
     ans = val.latex()
+    rad = rng.random() < 0.5                      # 弧度法と度数法を半々に
+    def ang(d):  # noqa: E306
+        return pi_tex(F(d, 180)) if rad else rf"{d}^\circ"
     wrongs = [(naive.latex(), "$\\sin(\\alpha+\\beta)\\neq\\sin\\alpha+\\sin\\beta$。加法定理を使う。"),
               (swapped.latex(), "加法定理の符号を確かめよう($\\cos$ の加法定理は符号が反対になる)。"),
               ((-val).latex(), "符号を確かめよう。角がどの象限にあるかで符号が決まる。"),
               ((cos_deg(deg) if fn == "sin" else sin_deg(deg)).latex(), "$\\sin$ と $\\cos$ を取り違えていないか。")]
     return Problem(
-        "加法定理で値を求める", "標準", rf"加法定理を用いて、$\{fn} {deg}^\circ$ の値を求めよ。",
+        "加法定理で値を求める", "標準", rf"加法定理を用いて、$\{fn}\,{ang(deg)}$ の値を求めよ。",
         assemble(ans, wrongs, value=float(val)),
-        hints=[rf"${deg}^\circ={p}^\circ{op}{q}^\circ$ と分ける。",
+        hints=[rf"${ang(deg)}={ang(p)}{op}{ang(q)}$ と分ける。",
                r"$\sin(\alpha\pm\beta)=\sin\alpha\cos\beta\pm\cos\alpha\sin\beta$、$\cos(\alpha\pm\beta)=\cos\alpha\cos\beta\mp\sin\alpha\sin\beta$。"],
-        solution=[rf"$${formula}$$",
+        solution=[rf"$${formula if not rad else formula.replace(f'{p}^\\circ', ang(p) + ' ').replace(f'{q}^\\circ', ang(q) + ' ')}$$",
                   rf"$$={ans}$$"], meta=dict(deg=deg, fn=fn))
 
 

@@ -267,7 +267,8 @@ SPLIT_DEG = {75: (45, 30, "+"), 15: (45, 30, "-"), 105: (60, 45, "+"), 165: (120
              255: (210, 45, "+"), 285: (240, 45, "+"), 345: (300, 45, "+")}
 # 弧度法:(π の何倍か) → (p, q, 演算)(p, q も π の何倍か)
 SPLIT_RAD = {F(1, 12): (F(1, 3), F(1, 4), "-"), F(5, 12): (F(1, 4), F(1, 6), "+"), F(7, 12): (F(1, 3), F(1, 4), "+"),
-             F(11, 12): (F(2, 3), F(1, 4), "+")}
+             F(11, 12): (F(2, 3), F(1, 4), "+"), F(13, 12): (F(3, 4), F(1, 3), "+"), F(17, 12): (F(3, 4), F(2, 3), "+"),
+             F(19, 12): (F(4, 3), F(1, 4), "+"), F(23, 12): (F(5, 3), F(1, 4), "+")}
 
 
 def div_q3(num, den):
@@ -322,13 +323,12 @@ def _add_parts(fn, p, q, op):
 def _add_value(rng, level):
     if level == "基本":
         fn = rng.choice(["sin", "cos"])
-        deg = rng.choice(list(SPLIT_DEG))
-        p, q, op = SPLIT_DEG[deg]
-        A, Pt, Qt = rf"{deg}^\circ", rf"{p}^\circ", rf"{q}^\circ"
         given = True
     else:
         fn = rng.choice(["sin", "cos", "tan"])
-        if rng.random() < 0.5:
+        given = fn == "tan" and rng.random() < 0.5
+    if True:
+        if rng.random() < 0.5:                     # 弧度法と度数法を半々に
             r = rng.choice(list(SPLIT_RAD))
             pr, qr, op = SPLIT_RAD[r]
             deg, p, q = int(r * 180), int(pr * 180), int(qr * 180)
@@ -337,7 +337,6 @@ def _add_value(rng, level):
             deg = rng.choice(list(SPLIT_DEG))
             p, q, op = SPLIT_DEG[deg]
             A, Pt, Qt = rf"{deg}^\circ", rf"{p}^\circ", rf"{q}^\circ"
-        given = fn == "tan" and rng.random() < 0.5
     ans, swapped, naive, mid, vals = _add_parts(fn, p, q, op)
     from exercises.helpers import trig_val
     assert abs(float(ans) - float(trig_val(fn, deg))) < 1e-12
@@ -442,7 +441,7 @@ def g_add_from_values(rng):
 
 REGISTRY = [
     ProblemType("add_formula", "加法定理の公式", "基本", g_add_formula),
-    ProblemType("add_value", "加法定理で値を求める(sin 75° = sin(45° + 30°) など)", "基本", g_add_value),
+    ProblemType("add_value", "加法定理で値を求める(sin 75° = sin(45° + 30°)、sin 5π/12 = sin(π/4 + π/6) など)", "基本", g_add_value),
     ProblemType("synth", "三角関数の合成", "基本", g_synth),
     ProblemType("prod_sum", "積和の公式", "基本", g_prod_sum),
     ProblemType("sum_prod", "和積の公式", "基本", g_sum_prod),
