@@ -64,10 +64,12 @@ PAGES = {
         st.Page("views/survey.py", title="測量（高さ・川幅・トラバース）", icon="📏", url_path="survey"),
         st.Page("views/slope.py", title="勾配の表し方（%・‰・寸）", icon="⛰️", url_path="slope"),
     ],
-    "発展（逆関数・微分への入り口）": [
+    "発展（逆関数・微分・球面への入り口）": [
         st.Page("views/inverse_trig.py", title="逆三角関数と主値", icon="↩️", url_path="inverse_trig"),
         st.Page("views/tangent_slope.py", title="接線の傾きと cos x", icon="📐", url_path="tangent_slope"),
         st.Page("views/taylor.py", title="テイラー展開（多項式で近似）", icon="🧮", url_path="taylor"),
+        st.Page("views/spherical_coords.py", title="球面座標と緯度・経度", icon="🌐", url_path="spherical_coords"),
+        st.Page("views/spherical_triangle.py", title="球面三角形（球面三角法）", icon="🔺", url_path="spherical_triangle"),
         st.Page("views/ex_advanced.py", title="演習（発展）", icon="✏️", url_path="ex_advanced"),
     ],
 }
