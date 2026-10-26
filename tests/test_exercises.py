@@ -75,6 +75,20 @@ def check_values(t, p):
         al, be = math.atan2(sa, ca), math.atan2(sb, cb)
         ang = al + be if m["op"] == "+" else al - be
         near(v, (math.sin if m["fn"] == "sin" else math.cos)(ang), 1e-9)
+    elif k == "sph_xyz":
+        r, th, ph = m["r"], math.radians(m["th"]), math.radians(m["ph"])
+        near(v, {"x": r * math.sin(th) * math.cos(ph), "y": r * math.sin(th) * math.sin(ph), "z": r * math.cos(th)}[m["comp"]], 1e-9)
+    elif k == "lat_circle":
+        near(v, 2 * math.pi * 6400 * math.cos(math.radians(m["lat"])), 1e-6)
+    elif k == "gc_dist":
+        near(v, 6400 * math.radians(m["d"]), 1e-6)
+        assert 0 < m["d"] <= 180
+    elif k == "girard":
+        near(v, math.radians(sum(m["angs"])) - math.pi, 1e-9)
+        assert v > 0
+    elif k == "sph_cos":
+        a, b, g = (math.radians(m[x]) for x in ("a", "b", "g"))
+        near(v, math.cos(a) * math.cos(b) + math.sin(a) * math.sin(b) * math.cos(g), 1e-9)
     elif k == "compose":
         pass  # 下の個別テストで確かめる
 
