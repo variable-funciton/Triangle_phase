@@ -258,10 +258,196 @@ def g_value_ps(rng):
                    solution=[rf"$${lhs}={formula}={val.latex()}$$"], meta=dict(A=A, B=B, kind=kind))
 
 
+
+# ============================================================
+# 加法定理そのものを使う問題
+# ============================================================
+# 角(度) → (p, q, 演算):deg = p ± q(p, q は有名角)
+SPLIT_DEG = {75: (45, 30, "+"), 15: (45, 30, "-"), 105: (60, 45, "+"), 165: (120, 45, "+"), 195: (150, 45, "+"),
+             255: (210, 45, "+"), 285: (240, 45, "+"), 345: (300, 45, "+")}
+# 弧度法:(π の何倍か) → (p, q, 演算)(p, q も π の何倍か)
+SPLIT_RAD = {F(1, 12): (F(1, 3), F(1, 4), "-"), F(5, 12): (F(1, 4), F(1, 6), "+"), F(7, 12): (F(1, 3), F(1, 4), "+"),
+             F(11, 12): (F(2, 3), F(1, 4), "+")}
+
+
+def div_q3(num, den):
+    """num / den(den は c1 + c3√3 の形)を厳密に"""
+    p, q = den.c[1], den.c[3]
+    if den.c[2] or den.c[6]:
+        raise ValueError
+    conj = Q236(p, 0, -q, 0)
+    return (num * conj) * F(1, 1) / (p * p - 3 * q * q)
+
+
+def tan_q(deg):
+    from exercises.helpers import tan_deg
+    return tan_deg(deg)
+
+
+def _add_parts(fn, p, q, op):
+    """加法定理の右辺の値(正解)と、典型的な誤答の値"""
+    sp, cp, sq, cq = sin_deg(p), cos_deg(p), sin_deg(q), cos_deg(q)
+    plus = op == "+"
+    if fn == "sin":
+        ans = sp * cq + cp * sq if plus else sp * cq - cp * sq
+        swapped = sp * cq - cp * sq if plus else sp * cq + cp * sq
+        naive = sp + sq if plus else sp - sq
+        mid = rf"\sin {{P}}\cos {{Q}}{op}\cos {{P}}\sin {{Q}}"
+        vals = rf"{sp.latex()}\cdot{cq.latex()}{op}{cp.latex()}\cdot{sq.latex()}"
+    elif fn == "cos":
+        ans = cp * cq - sp * sq if plus else cp * cq + sp * sq
+        swapped = cp * cq + sp * sq if plus else cp * cq - sp * sq
+        naive = cp + cq if plus else cp - cq
+        mop = "-" if plus else "+"
+        mid = rf"\cos {{P}}\cos {{Q}}{mop}\sin {{P}}\sin {{Q}}"
+        vals = rf"{cp.latex()}\cdot{cq.latex()}{mop}{sp.latex()}\cdot{sq.latex()}"
+    else:
+        tp, tq = tan_q(p), tan_q(q)
+        if tp is None or tq is None:
+            raise Retry
+        num = tp + tq if plus else tp - tq
+        den = (Q236(1) - tp * tq) if plus else (Q236(1) + tp * tq)
+        den_bad = (Q236(1) + tp * tq) if plus else (Q236(1) - tp * tq)
+        if den.is_zero() or den_bad.is_zero():
+            raise Retry
+        ans = div_q3(num, den)
+        swapped = div_q3(num, den_bad)
+        naive = num
+        mop = "-" if plus else "+"
+        mid = rf"\frac{{\tan {{P}}{op}\tan {{Q}}}}{{1{mop}\tan {{P}}\tan {{Q}}}}"
+        vals = rf"\frac{{{tp.latex()}{op}{tq.latex()}}}{{1{mop}{tp.latex()}\cdot{tq.latex()}}}"
+    return ans, swapped, naive, mid, vals
+
+
+def _add_value(rng, level):
+    if level == "基本":
+        fn = rng.choice(["sin", "cos"])
+        deg = rng.choice(list(SPLIT_DEG))
+        p, q, op = SPLIT_DEG[deg]
+        A, Pt, Qt = rf"{deg}^\circ", rf"{p}^\circ", rf"{q}^\circ"
+        given = True
+    else:
+        fn = rng.choice(["sin", "cos", "tan"])
+        if rng.random() < 0.5:
+            r = rng.choice(list(SPLIT_RAD))
+            pr, qr, op = SPLIT_RAD[r]
+            deg, p, q = int(r * 180), int(pr * 180), int(qr * 180)
+            A, Pt, Qt = pi_tex(r), pi_tex(pr), pi_tex(qr)
+        else:
+            deg = rng.choice(list(SPLIT_DEG))
+            p, q, op = SPLIT_DEG[deg]
+            A, Pt, Qt = rf"{deg}^\circ", rf"{p}^\circ", rf"{q}^\circ"
+        given = fn == "tan" and rng.random() < 0.5
+    ans, swapped, naive, mid, vals = _add_parts(fn, p, q, op)
+    from exercises.helpers import trig_val
+    assert abs(float(ans) - float(trig_val(fn, deg))) < 1e-12
+    other = {"sin": cos_deg(deg), "cos": sin_deg(deg), "tan": None}[fn]
+    wrongs = [(naive.latex(), f"$\\{fn}(\\alpha{op}\\beta)\\neq\\{fn}\\alpha{op}\\{fn}\\beta$。加法定理を使う。"),
+              (swapped.latex(), "加法定理の符号を確かめよう(" + ("$\\cos$ の加法定理は符号が反対になる" if fn == "cos" else
+                                                         "$\\tan$ は分母の符号が反対" if fn == "tan" else "$\\sin(\\alpha-\\beta)$ はマイナス") + ")。"),
+              ((-ans).latex(), "符号を確かめよう。角がどの象限にあるかで、値の符号が決まる。"),
+              ((other.latex() if other is not None else None), "$\\sin$ と $\\cos$ を取り違えていないか。")]
+    if fn == "tan":
+        wrongs[-1] = ((div_q3(Q236(1), ans)).latex(), "$\\tan\\theta=\\dfrac{\\sin\\theta}{\\cos\\theta}$。逆数になっていないか。")
+    split = rf"{Pt}{op}{Qt}"
+    mid_t = mid.replace("{P}", Pt).replace("{Q}", Qt)
+    st = (rf"${'\\' + fn}\,{A}=\{fn}\left({split}\right)$ として、加法定理を用いて $\{fn}\,{A}$ の値を求めよ。" if given else
+          rf"加法定理を用いて、$\{fn}\,{A}$ の値を求めよ。")
+    sol = [rf"${A}={split}$ と分ける。",
+           rf"$$\{fn}\,{A}=\{fn}\left({split}\right)={mid_t}$$",
+           rf"$$={vals}={ans.latex()}$$"]
+    if fn == "tan":
+        sol.insert(2, r"(分母に $\sqrt{3}$ があれば、分母・分子に同じ数をかけて有理化する)")
+    return Problem("加法定理で値を求める" + ("" if given else "(分け方も考える)"), level, st,
+                   assemble(ans.latex(), wrongs, value=float(ans)),
+                   hints=([] if given else [rf"${A}$ を、有名角の和か差で表そう(${split}$ など)。"]) +
+                         [r"$\sin(\alpha\pm\beta)=\sin\alpha\cos\beta\pm\cos\alpha\sin\beta$、$\cos(\alpha\pm\beta)=\cos\alpha\cos\beta\mp\sin\alpha\sin\beta$",
+                          r"$\tan(\alpha\pm\beta)=\dfrac{\tan\alpha\pm\tan\beta}{1\mp\tan\alpha\tan\beta}$"],
+                   solution=sol, meta=dict(fn=fn, deg=deg))
+
+
+def g_add_value(rng):
+    return _add_value(rng, "基本")
+
+
+def g_add_value_std(rng):
+    return _add_value(rng, "標準")
+
+
+# 加法定理の公式そのもの
+FORMULAS = {
+    r"\sin(\alpha+\beta)": r"\sin\alpha\cos\beta+\cos\alpha\sin\beta",
+    r"\sin(\alpha-\beta)": r"\sin\alpha\cos\beta-\cos\alpha\sin\beta",
+    r"\cos(\alpha+\beta)": r"\cos\alpha\cos\beta-\sin\alpha\sin\beta",
+    r"\cos(\alpha-\beta)": r"\cos\alpha\cos\beta+\sin\alpha\sin\beta",
+}
+
+
+def g_add_formula(rng):
+    lhs = rng.choice(list(FORMULAS))
+    ans = FORMULAS[lhs]
+    pool = list(FORMULAS.values()) + [r"\sin\alpha\sin\beta+\cos\alpha\cos\beta" if "sin" in lhs[:5] else r"\sin\alpha\cos\beta+\cos\alpha\sin\beta",
+                                      r"\sin\alpha+\sin\beta", r"\cos\alpha+\cos\beta", r"\sin\alpha\sin\beta-\cos\alpha\cos\beta"]
+    whys = "公式を確かめよう。$\\sin$ は「$\\sin\\cos$, $\\cos\\sin$」で符号はそのまま、$\\cos$ は「$\\cos\\cos$, $\\sin\\sin$」で符号が反対。"
+    wrongs = [(t, whys if "+" in t[-12:] or "-" in t else whys) for t in pool if t != ans]
+    wrongs = [(t, "$\\sin(\\alpha+\\beta)\\neq\\sin\\alpha+\\sin\\beta$。" if t in (r"\sin\alpha+\sin\beta", r"\cos\alpha+\cos\beta") else w)
+              for t, w in wrongs]
+    rng.shuffle(wrongs)
+    return Problem("加法定理の公式", "基本", rf"${lhs}$ を $\sin\alpha,\ \cos\alpha,\ \sin\beta,\ \cos\beta$ で表せ。",
+                   assemble(ans, wrongs),
+                   hints=[r"単位円上の 2 点の距離から $\cos(\alpha-\beta)=\cos\alpha\cos\beta+\sin\alpha\sin\beta$ が導かれる(「加法定理とその証明」のページ)。",
+                          r"$\beta$ を $-\beta$ にすると、$\sin$ の項の符号だけが変わる。"],
+                   solution=[rf"$${lhs}={ans}$$", r"(確かめ:$\alpha=90^\circ,\ \beta=0^\circ$ などを代入して両辺を比べるとよい)"],
+                   meta=dict(lhs=lhs))
+
+
+# sin α, cos β の値から sin(α ± β) などを求める
+TRIPLES = [(3, 4, 5), (4, 3, 5), (5, 12, 13), (12, 5, 13), (8, 15, 17)]
+
+
+def g_add_from_values(rng):
+    a1, b1, c1 = rng.choice(TRIPLES)
+    a2, b2, c2 = rng.choice(TRIPLES)
+    qa = rng.choice([1, 2])          # α:第1 または第2象限
+    qb = rng.choice([1, 4])          # β:第1 または第4象限
+    sa, ca = F(a1, c1), F(b1 if qa == 1 else -b1, c1)
+    cb, sb = F(b2, c2), F(a2 if qb == 1 else -a2, c2)
+    fn = rng.choice(["sin", "cos"])
+    op = rng.choice(["+", "-"])
+    if fn == "sin":
+        ans = sa * cb + ca * sb if op == "+" else sa * cb - ca * sb
+        swapped = sa * cb - ca * sb if op == "+" else sa * cb + ca * sb
+        signerr = sa * cb + (-ca) * sb if op == "+" else sa * cb - (-ca) * sb
+        form = rf"\sin\alpha\cos\beta{op}\cos\alpha\sin\beta"
+    else:
+        ans = ca * cb - sa * sb if op == "+" else ca * cb + sa * sb
+        swapped = ca * cb + sa * sb if op == "+" else ca * cb - sa * sb
+        signerr = (-ca) * cb - sa * sb if op == "+" else (-ca) * cb + sa * sb
+        form = rf"\cos\alpha\cos\beta{'-' if op == '+' else '+'}\sin\alpha\sin\beta"
+    ra = r"0<\alpha<\frac{\pi}{2}" if qa == 1 else r"\frac{\pi}{2}<\alpha<\pi"
+    rb = r"0<\beta<\frac{\pi}{2}" if qb == 1 else r"-\frac{\pi}{2}<\beta<0"
+    wrongs = [(tex_fr(swapped), "加法定理の符号を確かめよう。"),
+              (tex_fr(signerr), "$\\cos\\alpha$ の符号を確かめよう($\\alpha$ がどの象限にあるか)。"),
+              (tex_fr(-ans), "符号を確かめよう。"),
+              (tex_fr((sa + sb) if fn == "sin" else (ca + cb)), "加法定理を使う($\\sin(\\alpha+\\beta)\\neq\\sin\\alpha+\\sin\\beta$)。"),
+              (tex_fr(ans + F(1, c1 * c2)), "代入したあとの計算を確かめよう。")]
+    return Problem("加法定理(三角比の値から)", "標準",
+                   rf"${ra},\ {rb}$ で、$\sin\alpha={tex_fr(sa)},\ \cos\beta={tex_fr(cb)}$ のとき、$\{fn}(\alpha{op}\beta)$ の値を求めよ。",
+                   assemble(tex_fr(ans), wrongs, value=float(ans)),
+                   hints=[r"まず $\cos\alpha$ と $\sin\beta$ を $\sin^2\theta+\cos^2\theta=1$ と角の範囲(符号)から求める。",
+                          rf"$\{fn}(\alpha{op}\beta)={form}$"],
+                   solution=[rf"$\cos\alpha={tex_fr(ca)}$(${ra}$ より{'正' if ca > 0 else '負'})、$\sin\beta={tex_fr(sb)}$(${rb}$ より{'正' if sb > 0 else '負'})",
+                             rf"$$\{fn}(\alpha{op}\beta)={form}={tex_fr(ans)}$$"],
+                   meta=dict(sa=str(sa), ca=str(ca), sb=str(sb), cb=str(cb), fn=fn, op=op))
+
 REGISTRY = [
+    ProblemType("add_formula", "加法定理の公式", "基本", g_add_formula),
+    ProblemType("add_value", "加法定理で値を求める(sin 75° = sin(45° + 30°) など)", "基本", g_add_value),
     ProblemType("synth", "三角関数の合成", "基本", g_synth),
     ProblemType("prod_sum", "積和の公式", "基本", g_prod_sum),
     ProblemType("sum_prod", "和積の公式", "基本", g_sum_prod),
+    ProblemType("add_value2", "加法定理で値を求める(分け方も考える・tan・弧度法)", "標準", g_add_value_std),
+    ProblemType("add_from", "加法定理(三角比の値から)", "標準", g_add_from_values),
     ProblemType("synth_max", "合成して最大値・最小値", "標準", g_synth_max),
     ProblemType("synth_range", "区間での最大値・最小値", "標準", g_synth_range),
     ProblemType("value_ps", "積和・和積の公式で値を求める", "標準", g_value_ps),
