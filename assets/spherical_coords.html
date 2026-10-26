@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 12px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#plot-p { height: 440px; }
+#plot-s, #globe { height: 500px; }
+#map { height: 330px; }
+select { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.pick { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.pick label { display: flex; gap: 6px; align-items: center; }
+.steps p { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="polar">① 平面の極座標 (r, θ)</button>
+    <button data-tab="sph">② 球面座標 (r, θ, φ) と緯度・経度</button>
+    <button data-tab="city">③ 地球上の 2 都市の距離（大円）</button>
+  </div>
+
+  <!-- ① 平面の極座標 -->
+  <div id="tab-polar">
+    <div class="params" id="params-p"></div>
+    <div class="formula"><div class="main" id="formula-p"></div></div>
+    <div class="layout">
+      <div class="plot" id="plot-p"></div>
+      <div><div class="metrics" id="metrics-p"></div><div class="info-box" id="msg-p"></div></div>
+    </div>
+  </div>
+
+  <!-- ② 球面座標 -->
+  <div id="tab-sph" hidden>
+    <div class="box">
+      <h3>角のとり方</h3>
+      <div class="seg" data-key="mode"><button data-v="math">数学（θ は z 軸から測る）</button><button data-v="geo">地理（緯度・経度）</button></div>
+      <div class="checks" id="checks-s" style="margin-top:8px"></div>
+    </div>
+    <div class="params three" id="params-m"></div>
+    <div class="params three" id="params-g" hidden></div>
+    <div class="formula"><div class="main" id="formula-s"></div></div>
+    <div class="layout">
+      <div><div class="plot" id="plot-s"></div><div class="hint">ドラッグすると回転、ホイールで拡大できます</div></div>
+      <div>
+        <div class="metrics" id="metrics-s"></div>
+        <div class="info-box steps" id="msg-s"></div>
+        <div class="note-box" id="note-s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 都市 -->
+  <div id="tab-city" hidden>
+    <div class="box">
+      <h3>2 つの都市を選ぶ</h3>
+      <div class="pick">
+        <label>出発 <select id="city-a"></select></label>
+        <label>到着 <select id="city-b"></select></label>
+      </div>
+      <div class="checks" id="checks-c" style="margin-top:8px"></div>
+    </div>
+    <div class="formula"><div class="main" id="formula-c"></div><div class="sub" id="formula-c2"></div></div>
+    <div class="layout">
+      <div><div class="plot" id="globe"></div><div class="hint">ドラッグすると地球を回せます</div></div>
+      <div><div class="metrics" id="metrics-c"></div><div class="info-box" id="msg-c"></div></div>
+    </div>
+    <div class="plot" id="map"></div>
+    <div class="hint">緯度・経度をそのまま縦・横にした地図（正距円筒図法）。陸地はかいていません。</div>
+  </div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex, D = SC.D, f = TU.fmtNum;
+  var C = { op: "#d62728", rho: "#ff7f0e", z: "#2ca02c", x: "#1f77b4", y: "#9467bd", wire: "rgba(0,0,0,0.13)", eq: "rgba(31,119,180,0.55)",
+    gc: "#d62728", ml: "#1f77b4" };
+  var S = UI.store("spherical_coords_v1", { tab: "polar", r: 2, thp: 60, mode: "math", R: 1, th: 55, ph: 40,
+    a: "tokyo", b: "london", show: { tri: true, wire: true, ml: true } });
+  var deg = function (v) { return f(v, 1) + "°"; };
+
+  // ---------------- ① 平面の極座標 ----------------
+  var PP = UI.params("params-p", [
+    { key: "r", label: "r", sub: "原点からの距離", min: 0.5, max: 3, step: 0.01, btn: 0.5, fmt: function (v) { return f(v, 2); } },
+    { key: "thp", label: "θ", sub: "x 軸から測った角 [°]", min: 0, max: 360, step: 1, btn: 15, fmt: deg, snap: UI.snapTo(15, 2) },
+  ], S, function () { redraw(); });
+
+  function trigVal(fn, d) {   // 有名角なら厳密な値、そうでなければ小数
+    var v = fn === "sin" ? Math.sin(d * D) : Math.cos(d * D);
+    return Math.abs(d % 15) < 1e-9 ? TU.exactValue(v).tex : f(v, 3);
+  }
+
+  function drawPolar() {
+    var r = S.r, th = S.thp, p = SC.polar(r, th), M = 3.4;
+    $("formula-p").innerHTML = tex("x = r\\cos\\theta = " + f(r, 2) + "\\cos " + f(th, 0) + "^\\circ \\approx " + f(p[0], 3) +
+      ",\\qquad y = r\\sin\\theta = " + f(r, 2) + "\\sin " + f(th, 0) + "^\\circ \\approx " + f(p[1], 3), true);
+    var L = UI.layout({ height: $("plot-p").clientHeight || 440, showlegend: false, margin: { l: 36, r: 10, t: 10, b: 30 },
+      xaxis: UI.axis({ range: [-M, M], dtick: 1 }), yaxis: UI.axis({ range: [-M, M], dtick: 1, scaleanchor: "x" }) });
+    var c = UI.circle(0, 0, r), data = [];
+    data.push(UI.lineTrace(c.x, c.y, "半径 r の円", "rgba(0,0,0,0.2)", { width: 1.5, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([0, p[0]], [0, 0], "x", C.x, { width: 4, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([p[0], p[0]], [0, p[1]], "y", C.z, { width: 4, extra: { hoverinfo: "skip" } }));
+    data.push(UI.lineTrace([0, p[0]], [0, p[1]], "r", C.op, { width: 3, extra: { hoverinfo: "skip" } }));
+    var ax = [], ay = [], n = 40, rr = Math.min(0.45, r * 0.35);
+    for (var i = 0; i <= n; i++) { var g = th * D * i / n; ax.push(rr * Math.cos(g)); ay.push(rr * Math.sin(g)); }
+    data.push(UI.lineTrace(ax, ay, "θ", "#555", { width: 2, extra: { hoverinfo: "skip" } }));
+    data.push(UI.pointTrace([p[0]], [p[1]], "P", C.op, 13));
+    L.annotations.push({ x: p[0], y: p[1], text: "P(x, y)", showarrow: false, xshift: p[0] >= 0 ? 34 : -34, yshift: p[1] >= 0 ? 12 : -12, font: { size: 14, color: C.op } });
+    L.annotations.push({ x: p[0] / 2, y: 0, text: "r cos θ", showarrow: false, yshift: p[1] >= 0 ? -12 : 12, font: { color: C.x, size: 13 } });
+    L.annotations.push({ x: p[0], y: p[1] / 2, text: "r sin θ", showarrow: false, xshift: p[0] >= 0 ? 30 : -30, font: { color: C.z, size: 13 } });
+    L.annotations.push({ x: p[0] / 2, y: p[1] / 2, text: "r", showarrow: false, xshift: -10 * Math.sin(th * D), yshift: 10 * Math.cos(th * D) + 4, font: { color: C.op, size: 14 } });
+    var hm = th / 2 * D; L.annotations.push({ x: (rr + 0.18) * Math.cos(hm), y: (rr + 0.18) * Math.sin(hm), text: "θ", showarrow: false, font: { size: 14 } });
+    Plotly.react("plot-p", data, L, UI.CONFIG);
+    UI.metrics("metrics-p", [["極座標 (r, θ)", "(" + f(r, 2) + ", " + f(th, 0) + "°)"], ["直交座標 (x, y)", "(" + f(p[0], 3) + ", " + f(p[1], 3) + ")"],
+      ["cos θ", tex(trigVal("cos", th))], ["sin θ", tex(trigVal("sin", th))], ["確かめ x² + y²", f(p[0] * p[0] + p[1] * p[1], 3) + " = r²"]]);
+    $("msg-p").innerHTML = "点の位置を「原点からの距離 r」と「x 軸から測った角 θ」で表す方法が <b>極座標</b> です。"
+      + "単位円で " + tex("(\\cos\\theta, \\sin\\theta)") + " だった点を r 倍すれば、" + tex("x = r\\cos\\theta,\\ y = r\\sin\\theta") + "。"
+      + "<br>逆に、" + tex("r = \\sqrt{x^2 + y^2}") + "、" + tex("\\tan\\theta = \\dfrac{y}{x}") + "。"
+      + "<br>② の球面座標は、この直角三角形を <b>2 回</b> 使うだけで作れます。";
+  }
+
+  // ---------------- ② 球面座標 ----------------
+  var PM = UI.params("params-m", [
+    { key: "R", label: "r", sub: "原点からの距離", min: 0.5, max: 1.5, step: 0.01, btn: 0.25, fmt: function (v) { return f(v, 2); } },
+    { key: "th", label: "θ", sub: "z 軸から測った角 [°]", min: 0, max: 180, step: 1, btn: 15, fmt: deg, snap: UI.snapTo(15, 2) },
+    { key: "ph", label: "φ", sub: "x 軸から測った角 [°]", min: 0, max: 360, step: 1, btn: 15, fmt: deg, snap: UI.snapTo(15, 2) },
+  ], S, function () { redraw(); });
+  var G = { lat: 90 - S.th, lon: SC.wrapLon(S.ph) };
+  var PG = UI.params("params-g", [
+    { key: "Rg", label: "R", sub: "球の半径", min: 0.5, max: 1.5, step: 0.01, btn: 0.25, fmt: function (v) { return f(v, 2); } },
+    { key: "lat", label: "緯度", sub: "赤道から測った角（北が ＋）", min: -90, max: 90, step: 1, btn: 15, fmt: function (v) { return (v >= 0 ? "北緯 " : "南緯 ") + Math.abs(v) + "°"; }, snap: UI.snapTo(15, 2) },
+    { key: "lon", label: "経度", sub: "本初子午線から測った角（東が ＋）", min: -180, max: 180, step: 1, btn: 15, fmt: function (v) { return (v >= 0 ? "東経 " : "西経 ") + Math.abs(v) + "°"; }, snap: UI.snapTo(15, 2) },
+  ], G, function (k) { if (k === "Rg") S.R = G.Rg; S.th = 90 - G.lat; S.ph = (G.lon + 360) % 360; redraw(); });
+  UI.checks("checks-s", [{ key: "tri", label: "2 つの直角三角形を強調" }, { key: "wire", label: "球の網目を表示" }], S, function () { redraw(); });
+
+  function line3(pts, color, width, dash, name) {
+    return { type: "scatter3d", mode: "lines", x: pts.map(function (p) { return p[0]; }), y: pts.map(function (p) { return p[1]; }), z: pts.map(function (p) { return p[2]; }),
+      line: { color: color, width: width || 4, dash: dash || "solid" }, name: name || "", hoverinfo: "skip", showlegend: !!name };
+  }
+  function label3(p, text, color, size) {
+    return { type: "scatter3d", mode: "text", x: [p[0]], y: [p[1]], z: [p[2]], text: [text], textfont: { color: color || "#333", size: size || 14 }, hoverinfo: "skip", showlegend: false };
+  }
+  function point3(p, color, size, name) {
+    return { type: "scatter3d", mode: "markers", x: [p[0]], y: [p[1]], z: [p[2]], marker: { color: color, size: size || 6 }, name: name || "", hoverinfo: "skip", showlegend: false };
+  }
+  /** 球の網目（緯線・経線を step° ごと） */
+  function wire(R, step, color, eqColor) {
+    var out = [], n = 72, lat, lon, i, pts;
+    for (lat = -90 + step; lat < 90; lat += step) {
+      pts = []; for (i = 0; i <= n; i++) pts.push(SC.geo(lat, -180 + 360 * i / n, R));
+      out.push(line3(pts, lat === 0 && eqColor ? eqColor : color, lat === 0 && eqColor ? 4 : 2));
+    }
+    for (lon = -180; lon < 180; lon += step) {
+      pts = []; for (i = 0; i <= n / 2; i++) pts.push(SC.geo(-90 + 180 * i / (n / 2), lon, R));
+      out.push(line3(pts, lon === 0 && eqColor ? eqColor : color, lon === 0 && eqColor ? 4 : 2));
+    }
+    return out;
+  }
+  function sphereSurface(R, opacity) {
+    var xs = [], ys = [], zs = [], n = 36;
+    for (var i = 0; i <= n; i++) {
+      var rx = [], ry = [], rz = [], lat = -90 + 180 * i / n;
+      for (var j = 0; j <= 2 * n; j++) { var p = SC.geo(lat, -180 + 360 * j / (2 * n), R); rx.push(p[0]); ry.push(p[1]); rz.push(p[2]); }
+      xs.push(rx); ys.push(ry); zs.push(rz);
+    }
+    return { type: "surface", x: xs, y: ys, z: zs, opacity: opacity, showscale: false, hoverinfo: "skip",
+      colorscale: [[0, "#e8f1fb"], [1, "#e8f1fb"]], lighting: { ambient: 1, diffuse: 0, specular: 0 }, contours: { x: { highlight: false }, y: { highlight: false }, z: { highlight: false } } };
+  }
+  function scene(M, eye) {
+    var ax = { range: [-M, M], showticklabels: false, title: { text: "" }, showgrid: false, zeroline: false, showbackground: false, showspikes: false };
+    return { xaxis: ax, yaxis: ax, zaxis: ax, aspectmode: "cube", camera: { eye: eye || { x: 1.25, y: 0.95, z: 0.65 } } };
+  }
+  function arcPts(center, u, v, r, a0, a1, n) {   // center + r (cos s u + sin s v)、s は a0〜a1
+    n = n || 30; var out = [];
+    for (var i = 0; i <= n; i++) { var s = a0 + (a1 - a0) * i / n, c = Math.cos(s), sn = Math.sin(s);
+      out.push([center[0] + r * (c * u[0] + sn * v[0]), center[1] + r * (c * u[1] + sn * v[1]), center[2] + r * (c * u[2] + sn * v[2])]); }
+    return out;
+  }
+
+  function drawSph() {
+    var geoMode = S.mode === "geo", R = S.R, th = S.th, ph = S.ph, P = SC.sph(R, th, ph);
+    var rho = R * Math.sin(th * D), Pp = [P[0], P[1], 0], lat = 90 - th, lon = SC.wrapLon(ph);
+    $("params-m").style.display = geoMode ? "none" : ""; $("params-g").style.display = geoMode ? "" : "none";
+    var data = [], M = 1.3;
+    data.push(sphereSurface(R, 0.18));
+    if (S.show.wire) wire(R, 30, C.wire, geoMode ? C.eq : null).forEach(function (t) { data.push(t); });
+    // 座標軸
+    [[[-M, 0, 0], [M, 0, 0], "x"], [[0, -M, 0], [0, M, 0], "y"], [[0, 0, -M], [0, 0, M], "z"]].forEach(function (a) {
+      data.push(line3([a[0], a[1]], "#444", 3)); data.push(label3(a[1], a[2], "#444", 15));
+    });
+    var tri = S.show.tri;
+    // 縦の直角三角形 O–P'–P と、床の直角三角形 O–(x,0,0)–P'
+    data.push(line3([[0, 0, 0], [0, 0, P[2]]], C.z, tri ? 9 : 5, "solid", geoMode ? "z = R sin(緯度)" : "z = r cos θ"));
+    data.push(line3([[0, 0, P[2]], P], "rgba(44,160,44,0.5)", 3, "dash"));
+    data.push(line3([[0, 0, 0], Pp], C.rho, tri ? 9 : 5, "solid", geoMode ? "ρ = R cos(緯度)" : "ρ = r sin θ"));
+    data.push(line3([Pp, P], C.rho, 3, "dash"));
+    data.push(line3([[0, 0, 0], [P[0], 0, 0]], C.x, tri ? 8 : 5, "solid", "x = ρ cos φ"));
+    data.push(line3([[P[0], 0, 0], Pp], C.y, tri ? 8 : 5, "solid", "y = ρ sin φ"));
+    data.push(line3([[0, 0, 0], P], C.op, 8, "solid", geoMode ? "OP = R" : "OP = r"));
+    // 角の弧
+    var ez = [0, 0, 1], eh = rho > 1e-9 ? [Math.cos(ph * D), Math.sin(ph * D), 0] : [1, 0, 0];
+    if (geoMode) {
+      data.push(line3(arcPts([0, 0, 0], eh, ez, 0.35 * R, 0, lat * D), "#8c564b", 6));
+      data.push(label3(arcPts([0, 0, 0], eh, ez, 0.48 * R, lat * D / 2, lat * D / 2, 1)[0], "緯度", "#8c564b", 13));
+      // 点 P を通る緯線（半径 R cos(緯度) の円）
+      var lc = []; for (var i = 0; i <= 72; i++) lc.push(SC.geo(lat, -180 + 5 * i, R));
+      data.push(line3(lc, "rgba(140,86,75,0.8)", 4, "solid", "P を通る緯線"));
+    } else {
+      data.push(line3(arcPts([0, 0, 0], ez, eh, 0.35 * R, 0, th * D), "#555", 6));
+      data.push(label3(arcPts([0, 0, 0], ez, eh, 0.5 * R, th * D / 2, th * D / 2, 1)[0], "θ", "#333", 16));
+    }
+    data.push(line3(arcPts([0, 0, 0], [1, 0, 0], [0, 1, 0], 0.3 * R, 0, (geoMode ? lon : ph) * D), "#555", 6));
+    data.push(label3(arcPts([0, 0, 0], [1, 0, 0], [0, 1, 0], 0.45 * R, (geoMode ? lon : ph) * D / 2, 0, 1)[0], geoMode ? "経度" : "φ", "#333", geoMode ? 13 : 16));
+    data.push(point3(P, C.op, 7)); data.push(label3([P[0] * 1.12, P[1] * 1.12, P[2] * 1.12 + 0.06], "P", C.op, 16));
+    data.push(point3(Pp, C.rho, 5)); data.push(label3([Pp[0] * 1.1, Pp[1] * 1.1, -0.1], "P'", C.rho, 14));
+    var L = { height: $("plot-s").clientHeight || 500, margin: { l: 0, r: 0, t: 0, b: 0 }, paper_bgcolor: "#fff", uirevision: "keep",
+      font: { family: "sans-serif" }, legend: { x: 0, y: 1, bgcolor: "rgba(255,255,255,0.7)", font: { size: 12 } }, scene: scene(M) };
+    Plotly.react("plot-s", data, L, UI.CONFIG);
+
+    var X = f(P[0], 3), Y = f(P[1], 3), Z = f(P[2], 3);
+    if (geoMode) {
+      $("formula-s").innerHTML = tex("x = R\\cos(\\text{緯度})\\cos(\\text{経度}),\\quad y = R\\cos(\\text{緯度})\\sin(\\text{経度}),\\quad z = R\\sin(\\text{緯度})", true);
+      UI.metrics("metrics-s", [["緯度・経度", SC.latText(lat) + "、" + SC.lonText(lon)], ["数学の θ = 90° − 緯度", deg(th)],
+        ["(x, y, z)", "(" + X + ", " + Y + ", " + Z + ")"], ["P を通る緯線の半径 R cos(緯度)", f(rho, 3)]]);
+      $("msg-s").innerHTML = "<p>地理では、角を <b>赤道（xy 平面）から</b> 測ります（緯度）。数学の θ は <b>z 軸（北極）から</b> 測るので、"
+        + tex("\\text{緯度} = 90^\\circ - \\theta") + "。</p>"
+        + "<p>余角の公式 " + tex("\\sin(90^\\circ - \\theta) = \\cos\\theta,\\ \\cos(90^\\circ - \\theta) = \\sin\\theta") + " より、"
+        + "<b>sin と cos が入れかわります</b>：</p>"
+        + "<p>" + tex("z = r\\cos\\theta = R\\sin(\\text{緯度}),\\quad \\rho = r\\sin\\theta = R\\cos(\\text{緯度})") + "</p>"
+        + "<p>茶色の円（P を通る緯線）の半径は " + tex("R\\cos(\\text{緯度})") + "。北へ行くほど緯線は短くなり、"
+        + "地球（半径 約 6400 km）では北緯 60° の緯線の長さは赤道の半分（" + tex("\\cos 60^\\circ = \\tfrac{1}{2}") + "）です。</p>";
+    } else {
+      $("formula-s").innerHTML = tex("x = r\\sin\\theta\\cos\\varphi,\\quad y = r\\sin\\theta\\sin\\varphi,\\quad z = r\\cos\\theta", true);
+      UI.metrics("metrics-s", [["球面座標 (r, θ, φ)", "(" + f(R, 2) + ", " + f(th, 0) + "°, " + f(ph, 0) + "°)"], ["(x, y, z)", "(" + X + ", " + Y + ", " + Z + ")"],
+        ["ρ = OP'", f(rho, 3)], ["確かめ x² + y² + z²", f(P[0] * P[0] + P[1] * P[1] + P[2] * P[2], 3) + " = r²"]]);
+      $("msg-s").innerHTML = "<p><b>① 縦の直角三角形</b>（O, P, P の真下の点 P'）：斜辺 OP = r、z 軸とのなす角 θ なので</p>"
+        + "<p>" + tex("z = r\\cos\\theta,\\qquad \\rho = \\mathrm{OP'} = r\\sin\\theta") + "</p>"
+        + "<p><b>② 床（xy 平面）の直角三角形</b>：斜辺 ρ、x 軸とのなす角 φ なので（① の極座標と同じ）</p>"
+        + "<p>" + tex("x = \\rho\\cos\\varphi = r\\sin\\theta\\cos\\varphi,\\qquad y = \\rho\\sin\\varphi = r\\sin\\theta\\sin\\varphi") + "</p>";
+    }
+    $("note-s").innerHTML = "確かめ：" + tex("x^2 + y^2 = \\rho^2(\\cos^2\\varphi + \\sin^2\\varphi) = \\rho^2") + "、"
+      + tex("\\rho^2 + z^2 = r^2(\\sin^2\\theta + \\cos^2\\theta) = r^2") + "。"
+      + "<br>θ は 0°〜180°、φ は 0°〜360° の範囲で動かせば、球面上のすべての点を表せます。";
+  }
+
+  // ---------------- ③ 都市 ----------------
+  var opts = SC.CITIES.map(function (c) { return '<option value="' + c.key + '">' + c.name + "</option>"; }).join("");
+  $("city-a").innerHTML = opts; $("city-b").innerHTML = opts;
+  $("city-a").value = S.a; $("city-b").value = S.b;
+  $("city-a").addEventListener("change", function () { S.a = this.value; redraw(); });
+  $("city-b").addEventListener("change", function () { S.b = this.value; redraw(); });
+  UI.checks("checks-c", [{ key: "ml", label: "地図上でまっすぐ結んだ道（青）も表示" }], S, function () { redraw(); });
+
+  /** 地図にかく点列：経度が ±180° をまたぐ所で線を切る */
+  function mapXY(ll) {
+    var xs = [], ys = [], prev = null;
+    ll.forEach(function (p) {
+      var lon = SC.wrapLon(p[1]);
+      if (prev !== null && Math.abs(lon - prev) > 180) { xs.push(null); ys.push(null); }
+      xs.push(lon); ys.push(p[0]); prev = lon;
+    });
+    return { x: xs, y: ys };
+  }
+
+  function drawCity() {
+    var A = SC.city(S.a), B = SC.city(S.b), R = 6371, same = A.key === B.key;
+    var w = SC.centralAngle(A.lat, A.lon, B.lat, B.lon), dist = R * w * D;
+    var gcLL = SC.greatArcLL(A.lat, A.lon, B.lat, B.lon, 120), mlLL = SC.mapLine(A.lat, A.lon, B.lat, B.lon, 240);
+    var mlLen = R * SC.pathLength(SC.geoPath(mlLL));
+    // 地球儀
+    var data = [sphereSurface(1, 0.35)];
+    wire(1, 30, "rgba(0,0,0,0.12)", "rgba(31,119,180,0.45)").forEach(function (t) { data.push(t); });
+    data.push(line3(SC.geoPath(gcLL, 1.004), C.gc, 7, "solid", "大円（最短の道）"));
+    if (S.show.ml) data.push(line3(SC.geoPath(mlLL, 1.004), C.ml, 5, "dash", "地図上の直線"));
+    [A, B].forEach(function (c, i) {
+      var p = SC.geo(c.lat, c.lon, 1.01); data.push(point3(p, i ? "#2ca02c" : "#ff7f0e", 6));
+      data.push(label3(SC.geo(c.lat, c.lon, 1.12), c.name, i ? "#2ca02c" : "#ff7f0e", 16));
+    });
+    // カメラ：弧の中点の方向から、大円の面に垂直な向きへ少しずらす（真横から見ると弧が直線に見えるため）
+    var pa = SC.geo(A.lat, A.lon), pb = SC.geo(B.lat, B.lon), mv = SC.norm([pa[0] + pb[0] + 1e-6, pa[1] + pb[1], pa[2] + pb[2] + 1e-6]);
+    var nv = SC.cross(pa, pb), nl = Math.hypot(nv[0], nv[1], nv[2]);
+    if (nl > 1e-6) { nv = [nv[0] / nl, nv[1] / nl, nv[2] / nl]; if (nv[2] < 0) nv = [-nv[0], -nv[1], -nv[2]]; } else nv = [0, 0, 1];
+    var ev = SC.norm([mv[0] + 0.45 * nv[0], mv[1] + 0.45 * nv[1], mv[2] + 0.45 * nv[2]]);
+    var eye = { x: 1.6 * ev[0], y: 1.6 * ev[1], z: 1.6 * ev[2] };
+    var L = { height: $("globe").clientHeight || 500, margin: { l: 0, r: 0, t: 0, b: 0 }, paper_bgcolor: "#fff", uirevision: S.a + "-" + S.b,
+      legend: { x: 0, y: 1, bgcolor: "rgba(255,255,255,0.7)" }, scene: scene(1.15, eye) };
+    Plotly.react("globe", data, L, UI.CONFIG);
+    // 地図
+    var g = mapXY(gcLL), m = mapXY(mlLL), md = [];
+    md.push(UI.lineTrace(g.x, g.y, "大円（最短の道）", C.gc, { width: 3, extra: { hoverinfo: "skip", connectgaps: false } }));
+    if (S.show.ml) md.push(UI.lineTrace(m.x, m.y, "地図上の直線", C.ml, { width: 2.5, dash: "dash", extra: { hoverinfo: "skip", connectgaps: false } }));
+    md.push(UI.pointTrace([A.lon, B.lon], [A.lat, B.lat], "都市", "#333", 10, { text: [A.name, B.name], mode: "markers+text", textposition: "top center" }));
+    var LM = UI.layout({ height: $("map").clientHeight || 330, margin: { l: 44, r: 10, t: 30, b: 34 },
+      xaxis: UI.axis({ range: [-180, 180], dtick: 30, zeroline: false, title: { text: "経度（東が ＋）", standoff: 4 } }),
+      yaxis: UI.axis({ range: [-90, 90], dtick: 30, title: { text: "緯度", standoff: 2 } }) });
+    Plotly.react("map", md, LM, UI.CONFIG);
+
+    var c1 = Math.sin(A.lat * D) * Math.sin(B.lat * D), c2 = Math.cos(A.lat * D) * Math.cos(B.lat * D) * Math.cos((B.lon - A.lon) * D);
+    $("formula-c").innerHTML = tex("\\cos\\theta = \\sin\\varphi_1\\sin\\varphi_2 + \\cos\\varphi_1\\cos\\varphi_2\\cos(\\lambda_2 - \\lambda_1)", true);
+    $("formula-c2").innerHTML = tex("= " + f(c1, 4) + " + (" + f(c2, 4) + ") = " + f(c1 + c2, 4) + "\\quad\\Rightarrow\\quad \\theta \\approx " + f(w, 2)
+      + "^\\circ,\\quad \\text{距離} = R\\theta \\approx " + f(dist, 0) + "\\ \\text{km}");
+    UI.metrics("metrics-c", [[A.name, SC.latText(A.lat) + "、" + SC.lonText(A.lon)], [B.name, SC.latText(B.lat) + "、" + SC.lonText(B.lon)],
+      ["中心角 θ", deg(w)], ["大円距離（最短）", f(dist, 0) + " km"],
+      ["地図上の直線にそって進むと", same ? "—" : f(mlLen, 0) + " km（" + f(mlLen / dist * 100 - 100, 1) + "% 長い）"]]);
+    $("msg-c").innerHTML = "球面上の 2 点を結ぶ最短の道は、球の中心を通る平面で切った円（<b>大円</b>）の弧です。"
+      + "その長さは、半径 R と中心角 θ（ラジアン）から <b>Rθ</b>（扇形の弧の長さ）。"
+      + "<br>θ は、2 点の位置ベクトルの成分から上の式で求めます（φ は緯度、λ は経度、地球の半径 R = 6371 km）。"
+      + "この式は、北極と 2 都市でできる <b>球面三角形の余弦法則</b>（次のページ）そのものです。"
+      + "<br>地図の上では大円は曲がって見え、地図上の直線（青）のほうが遠回りです。"
+      + "東京からヨーロッパや北米への飛行機が、北のほう（シベリア・アラスカ方面）を通るのはこのためです。";
+  }
+
+  function draw() {
+    if (S.tab === "polar") drawPolar(); else if (S.tab === "sph") drawSph(); else drawCity();
+    S.save();
+  }
+  var redraw = UI.throttle(draw);
+  UI.bindSegs(S, function () {
+    UI.syncSegs(S);
+    G.Rg = S.R; G.lat = Math.round((90 - S.th) * 100) / 100; G.lon = Math.round(SC.wrapLon(S.ph) * 100) / 100;
+    if (G.lon === -180) G.lon = 180;
+    PM.sync(); PG.sync(); redraw();
+  });
+  UI.tabs(S, "tab", redraw);
+  UI.syncSegs(S);
+  G.Rg = S.R; G.lat = 90 - S.th; G.lon = SC.wrapLon(S.ph);
+  PP.sync(); PM.sync(); PG.sync(); draw();
+})();
+</script>
+</body>
+</html>

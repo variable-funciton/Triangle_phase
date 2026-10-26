@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+/*__CSS__*/
+.layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 12px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#globe1, #globe2 { height: 500px; }
+#sum { height: 280px; }
+.presets button { padding: 4px 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="sides">① 辺と角（球面の余弦法則）</button>
+    <button data-tab="area">② 角の和と面積（ジラール・リュイリエ）</button>
+  </div>
+
+  <div class="box">
+    <h3>三角形を選ぶ／頂点を動かす</h3>
+    <div class="btns presets" id="presets" style="margin-bottom:8px"></div>
+    <div class="params three" id="params"></div>
+    <div class="checks" id="checks" style="margin-top:6px"></div>
+  </div>
+
+  <div id="tab-sides">
+    <div class="formula"><div class="main" id="formula1"></div><div class="sub" id="formula1b"></div></div>
+    <div class="layout">
+      <div><div class="plot" id="globe1"></div><div class="hint">ドラッグすると回転できます</div></div>
+      <div><div class="metrics" id="metrics1"></div><div class="info-box" id="msg1"></div></div>
+    </div>
+  </div>
+
+  <div id="tab-area" hidden>
+    <div class="params" id="params-k"></div>
+    <div class="formula"><div class="main" id="formula2"></div><div class="sub" id="formula2b"></div></div>
+    <div class="layout">
+      <div><div class="plot" id="globe2"></div><div class="hint">うすい線は元の三角形。ドラッグすると回転できます</div></div>
+      <div><div class="metrics" id="metrics2"></div><div class="plot" id="sum"></div><div class="info-box" id="msg2"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__COMMON__*/
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  if (!UI.ready()) return;
+  var $ = UI.$, tex = UI.tex, f = TU.fmtNum, D = ST.D;
+  var C = { a: "#1f77b4", b: "#2ca02c", c: "#ff7f0e", fill: "#d62728", ang: "#9467bd", wire: "rgba(0,0,0,0.12)" };
+  var V0 = ST.PRESETS[0].V;
+  var S = UI.store("spherical_triangle_v1", { tab: "sides", preset: "octant", k: 1,
+    alat: V0[0][0], alon: V0[0][1], blat: V0[1][0], blon: V0[1][1], clat: V0[2][0], clon: V0[2][1], show: { center: true, fill: true } });
+  var R_EARTH = 6371;
+  var latF = function (v) { return (v >= 0 ? "北緯 " : "南緯 ") + f(Math.abs(v), 2) + "°"; };
+  var lonF = function (v) { return (v >= 0 ? "東経 " : "西経 ") + f(Math.abs(v), 2) + "°"; };
+  var snap = UI.snapTo(5, 0.6);
+  var P = UI.params("params", [
+    { key: "alat", label: "A の緯度", min: -90, max: 90, step: 0.5, btn: 5, fmt: latF, snap: snap },
+    { key: "blat", label: "B の緯度", min: -90, max: 90, step: 0.5, btn: 5, fmt: latF, snap: snap },
+    { key: "clat", label: "C の緯度", min: -90, max: 90, step: 0.5, btn: 5, fmt: latF, snap: snap },
+    { key: "alon", label: "A の経度", min: -180, max: 180, step: 0.5, btn: 5, fmt: lonF, snap: snap },
+    { key: "blon", label: "B の経度", min: -180, max: 180, step: 0.5, btn: 5, fmt: lonF, snap: snap },
+    { key: "clon", label: "C の経度", min: -180, max: 180, step: 0.5, btn: 5, fmt: lonF, snap: snap },
+  ], S, function () { S.preset = ""; markPreset(); redraw(); });
+  var PK = UI.params("params-k", [
+    { key: "k", label: "大きさ", sub: "元の三角形を中心に向かって縮める（1 = 元の大きさ）", min: 0.02, max: 1, step: 0.01, btn: 0.1, fmt: function (v) { return f(v, 2) + " 倍"; } },
+  ], S, function () { redraw(); });
+  UI.checks("checks", [{ key: "center", label: "球の中心 O と頂点を結ぶ（辺 = 中心角）" }, { key: "fill", label: "三角形をぬる" }], S, function () { redraw(); });
+
+  $("presets").innerHTML = ST.PRESETS.map(function (q, i) { return '<button class="btn" data-i="' + i + '">' + q.name + "</button>"; }).join("");
+  $("presets").querySelectorAll("button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var q = ST.PRESETS[Number(b.dataset.i)];
+      S.alat = q.V[0][0]; S.alon = q.V[0][1]; S.blat = q.V[1][0]; S.blon = q.V[1][1]; S.clat = q.V[2][0]; S.clon = q.V[2][1];
+      S.preset = q.key; S.k = 1; P.sync(); PK.sync(); markPreset(); redraw();
+    });
+  });
+  function markPreset() { $("presets").querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", ST.PRESETS[Number(b.dataset.i)].key === S.preset); }); }
+  function verts() { return [[S.alat, S.alon], [S.blat, S.blon], [S.clat, S.clon]]; }
+
+  // ---------------- 3D の部品 ----------------
+  function line3(pts, color, width, dash, name) {
+    return { type: "scatter3d", mode: "lines", x: pts.map(function (p) { return p[0]; }), y: pts.map(function (p) { return p[1]; }), z: pts.map(function (p) { return p[2]; }),
+      line: { color: color, width: width || 4, dash: dash || "solid" }, name: name || "", hoverinfo: "skip", showlegend: !!name };
+  }
+  function label3(p, text, color, size) {
+    return { type: "scatter3d", mode: "text", x: [p[0]], y: [p[1]], z: [p[2]], text: [text], textfont: { color: color || "#333", size: size || 15 }, hoverinfo: "skip", showlegend: false };
+  }
+  function sphere() {
+    var xs = [], ys = [], zs = [], n = 36;
+    for (var i = 0; i <= n; i++) {
+      var rx = [], ry = [], rz = [];
+      for (var j = 0; j <= 2 * n; j++) { var p = ST.geo(-90 + 180 * i / n, -180 + 360 * j / (2 * n)); rx.push(p[0] * 0.995); ry.push(p[1] * 0.995); rz.push(p[2] * 0.995); }
+      xs.push(rx); ys.push(ry); zs.push(rz);
+    }
+    return { type: "surface", x: xs, y: ys, z: zs, opacity: 0.35, showscale: false, hoverinfo: "skip", colorscale: [[0, "#eef4fb"], [1, "#eef4fb"]],
+      lighting: { ambient: 1, diffuse: 0, specular: 0 }, contours: { x: { highlight: false }, y: { highlight: false }, z: { highlight: false } } };
+  }
+  function wire(out) {
+    var n = 72, i, pts;
+    for (var lat = -60; lat <= 60; lat += 30) { pts = []; for (i = 0; i <= n; i++) pts.push(ST.geo(lat, -180 + 360 * i / n)); out.push(line3(pts, lat === 0 ? "rgba(31,119,180,0.35)" : C.wire, 2)); }
+    for (var lon = -180; lon < 180; lon += 30) { pts = []; for (i = 0; i <= n / 2; i++) pts.push(ST.geo(-90 + 180 * i / (n / 2), lon)); out.push(line3(pts, C.wire, 2)); }
+  }
+  /** 球面三角形をぬる（頂点を細かく分けて球面に押し出した三角形の集まり） */
+  function fill(P3, color, opacity) {
+    var n = 24, xs = [], ys = [], zs = [], I = [], J = [], K = [], idx = {}, c = 0;
+    function id(i, j) { return idx[i + "," + j]; }
+    for (var i = 0; i <= n; i++) for (var j = 0; j <= n - i; j++) {
+      var u = i / n, v = j / n, w = 1 - u - v;
+      var p = ST.norm([u * P3[0][0] + v * P3[1][0] + w * P3[2][0], u * P3[0][1] + v * P3[1][1] + w * P3[2][1], u * P3[0][2] + v * P3[1][2] + w * P3[2][2]]);
+      xs.push(p[0] * 1.002); ys.push(p[1] * 1.002); zs.push(p[2] * 1.002); idx[i + "," + j] = c++;
+    }
+    for (i = 0; i < n; i++) for (j = 0; j < n - i; j++) {
+      I.push(id(i, j)); J.push(id(i + 1, j)); K.push(id(i, j + 1));
+      if (j < n - i - 1) { I.push(id(i + 1, j)); J.push(id(i + 1, j + 1)); K.push(id(i, j + 1)); }
+    }
+    return { type: "mesh3d", x: xs, y: ys, z: zs, i: I, j: J, k: K, color: color, opacity: opacity, hoverinfo: "skip", showscale: false,
+      lighting: { ambient: 1, diffuse: 0, specular: 0 }, flatshading: true };
+  }
+  function tri(data, V, opt) {
+    opt = opt || {};
+    var t = ST.solve(V), A = t.P[0], B = t.P[1], Cc = t.P[2], R = 1.006;
+    if (S.show.fill && !t.degenerate && !opt.faint) data.push(fill(t.P, C.fill, 0.25));
+    var w = opt.faint ? 4 : 7;
+    data.push(line3(ST.arcPoints(B, Cc, 60, R), opt.faint ? "rgba(31,119,180,0.7)" : C.a, w, opt.faint ? "dot" : "solid", opt.faint ? "" : "a = BC"));
+    data.push(line3(ST.arcPoints(Cc, A, 60, R), opt.faint ? "rgba(44,160,44,0.7)" : C.b, w, opt.faint ? "dot" : "solid", opt.faint ? "" : "b = CA"));
+    data.push(line3(ST.arcPoints(A, B, 60, R), opt.faint ? "rgba(255,127,14,0.7)" : C.c, w, opt.faint ? "dot" : "solid", opt.faint ? "" : "c = AB"));
+    if (opt.faint) return t;
+    if (S.show.center) {
+      [A, B, Cc].forEach(function (p) { data.push(line3([[0, 0, 0], p], "rgba(0,0,0,0.45)", 3, "dash")); });
+      data.push(label3([0, 0, -0.08], "O", "#333", 14));
+    }
+    var eps = Math.min(0.15, 0.3 * Math.min(t.a, t.b, t.c));
+    if (!t.degenerate) {
+      [[A, B, Cc], [B, Cc, A], [Cc, A, B]].forEach(function (q) { data.push(line3(ST.angleMark(q[0], q[1], q[2], eps, 20).map(function (p) { return [p[0] * R, p[1] * R, p[2] * R]; }), C.ang, 5)); });
+    }
+    var names = ["A", "B", "C"], g = ST.centroid(V);
+    [A, B, Cc].forEach(function (p, i) {
+      // ラベルは三角形の外側（中心と反対の向き）に少しずらす
+      var d = ST.norm([p[0] - g[0] * 0.6, p[1] - g[1] * 0.6, p[2] - g[2] * 0.6]);
+      data.push({ type: "scatter3d", mode: "markers", x: [p[0] * R], y: [p[1] * R], z: [p[2] * R], marker: { size: 5, color: "#333" }, hoverinfo: "skip", showlegend: false });
+      data.push(label3([p[0] * 1.1 + 0.05 * d[0], p[1] * 1.1 + 0.05 * d[1], p[2] * 1.1 + 0.05 * d[2]], names[i], "#111", 17));
+    });
+    return t;
+  }
+  function layout3(id, V) {
+    var g = ST.centroid(V); if (!isFinite(g[0])) g = [1, 0, 0];
+    var ax = { range: [-1.15, 1.15], showticklabels: false, title: { text: "" }, showgrid: false, zeroline: false, showbackground: false, showspikes: false };
+    var e = ST.norm([g[0] + 0.15, g[1] + 0.1, g[2] + 0.35]);
+    return { height: $(id).clientHeight || 500, margin: { l: 0, r: 0, t: 0, b: 0 }, paper_bgcolor: "#fff", uirevision: S.preset || "free",
+      legend: { x: 0, y: 1, bgcolor: "rgba(255,255,255,0.7)" },
+      scene: { xaxis: ax, yaxis: ax, zaxis: ax, aspectmode: "cube", camera: { eye: { x: 1.7 * e[0], y: 1.7 * e[1], z: 1.7 * e[2] } } } };
+  }
+  var dg = function (x) { return f(x / D, 2) + "^\\circ"; };
+  var dgt = function (x) { return f(x / D, 2) + "°"; };
+
+  // ---------------- ① 辺と角 ----------------
+  function drawSides() {
+    var data = [sphere()]; wire(data);
+    var V = verts(), t = tri(data, V);
+    Plotly.react("globe1", data, layout3("globe1", V), UI.CONFIG);
+    if (t.degenerate) {
+      $("formula1").innerHTML = ""; $("formula1b").innerHTML = "";
+      UI.metrics("metrics1", [["三角形", "3 点が 1 つの大円の上にあるので、三角形ができません"]]);
+      $("msg1").innerHTML = "頂点を動かしてください。"; return;
+    }
+    var ca = Math.cos(t.a), cb = Math.cos(t.b), cc = Math.cos(t.c), sb = Math.sin(t.b), sc = Math.sin(t.c);
+    $("formula1").innerHTML = tex("\\cos a = \\cos b\\cos c + \\sin b\\sin c\\cos\\alpha\\quad\\Longleftrightarrow\\quad \\cos\\alpha = \\frac{\\cos a - \\cos b\\cos c}{\\sin b\\sin c}", true);
+    $("formula1b").innerHTML = tex("\\cos\\alpha = \\frac{" + f(ca, 4) + " - (" + f(cb, 4) + ")(" + f(cc, 4) + ")}{" + f(sb, 4) + "\\times " + f(sc, 4) + "} = "
+      + f((ca - cb * cc) / (sb * sc), 4) + "\\quad\\Rightarrow\\quad \\alpha \\approx " + dg(t.alpha));
+    UI.metrics("metrics1", [["辺 a = BC（中心角）", dgt(t.a)], ["辺 b = CA", dgt(t.b)], ["辺 c = AB", dgt(t.c)],
+      ["角 α = ∠A", dgt(t.alpha)], ["角 β = ∠B", dgt(t.beta)], ["角 γ = ∠C", dgt(t.gamma)],
+      ["角の和 α + β + γ", dgt(t.sum)], ["180° をこえた分（球過量 E）", dgt(t.E)],
+      ["地球の上なら a, b, c は", f(R_EARTH * t.a, 0) + ", " + f(R_EARTH * t.b, 0) + ", " + f(R_EARTH * t.c, 0) + " km"]]);
+    $("msg1").innerHTML = "球面上の 3 点を <b>大円の弧</b> で結んだ図形が <b>球面三角形</b> です。"
+      + "単位球（半径 1）の上では、辺の長さ ＝ 中心 O から見た <b>中心角</b>（ラジアン）なので、辺も角度で表します。"
+      + "角 α, β, γ は、頂点で 2 つの大円の弧がなす角（紫の印）です。"
+      + "<br>上の式が <b>球面の余弦法則</b>。辺 a, b, c がわかれば角が決まります。"
+      + "（平面の余弦定理 " + tex("a^2 = b^2 + c^2 - 2bc\\cos\\alpha") + " と見比べよう。）"
+      + "<br>「北極と赤道上の 2 点」では、辺も角も <b>すべて 90°</b>。平面の三角形ではありえない形です。";
+  }
+
+  // ---------------- ② 角の和と面積 ----------------
+  function drawArea() {
+    var V = verts(), Vk = ST.shrink(V, S.k), data = [sphere()]; wire(data);
+    if (S.k < 0.999) tri(data, V, { faint: true });
+    var t = tri(data, Vk);
+    Plotly.react("globe2", data, layout3("globe2", V), UI.CONFIG);
+    // 大きさと角の和のグラフ
+    var ks = [], sums = [], t0 = ST.solve(V);
+    for (var i = 0; i <= 60; i++) { var k = 0.02 + 0.98 * i / 60, q = ST.solve(ST.shrink(V, k)); ks.push(k); sums.push(q.degenerate ? null : q.sum / D); }
+    var L = UI.layout({ height: $("sum").clientHeight || 280, margin: { l: 50, r: 10, t: 30, b: 40 }, showlegend: false,
+      xaxis: UI.axis({ range: [0, 1.02], title: { text: "大きさ（倍）", standoff: 4 }, zeroline: false }),
+      yaxis: UI.axis({ title: { text: "角の和 [°]", standoff: 2 }, zeroline: false, rangemode: "normal" }) });
+    L.shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, y0: 180, y1: 180, line: { color: "#555", width: 1.5, dash: "dash" } });
+    L.annotations.push({ xref: "paper", x: 0.02, y: 180, text: "180°（平面の三角形）", showarrow: false, yanchor: "top", xanchor: "left", font: { size: 12, color: "#555" } });
+    var pd = [UI.lineTrace(ks, sums, "角の和", C.fill, { width: 2.5, extra: { hoverinfo: "skip" } })];
+    if (!t.degenerate) pd.push(UI.pointTrace([S.k], [t.sum / D], "いま", C.fill, 11));
+    var ymax = t0.degenerate ? 200 : Math.max(200, t0.sum / D + 10);
+    L.yaxis.range = [170, ymax];
+    Plotly.react("sum", pd, L, UI.CONFIG);
+    if (t.degenerate) { UI.metrics("metrics2", [["三角形", "できません"]]); $("formula2").innerHTML = ""; $("formula2b").innerHTML = ""; $("msg2").innerHTML = ""; return; }
+    var areaR = R_EARTH * R_EARTH;
+    $("formula2").innerHTML = tex("\\text{面積} = R^2 E,\\qquad E = \\alpha + \\beta + \\gamma - \\pi\\quad(\\text{ジラールの定理})", true);
+    $("formula2b").innerHTML = tex("\\tan\\frac{E}{4} = \\sqrt{\\tan\\frac{s}{2}\\tan\\frac{s - a}{2}\\tan\\frac{s - b}{2}\\tan\\frac{s - c}{2}},\\quad s = \\frac{a + b + c}{2}\\quad(\\text{リュイリエの公式})");
+    UI.metrics("metrics2", [["角の和 α + β + γ", dgt(t.sum)],
+      ["E（角から：ジラール）", f(t.E, 5) + " rad"], ["E（辺から：リュイリエ）", f(t.lhuilier, 5) + " rad"],
+      ["球面全体（4π）に対する割合", f(t.E / (4 * Math.PI) * 100, 3) + " %"],
+      ["地球の上での面積 R²E", fmtArea(areaR * t.E)],
+      ["平面の三角形とみた面積（ヘロン）", fmtArea(areaR * t.flat) + "（" + f(t.flat / t.E * 100, 2) + " %）"]]);
+    $("msg2").innerHTML = "球面三角形の角の和は、いつも <b>180° より大きく</b> なります。180° をこえた分 E（<b>球過量</b>）は、"
+      + "単位球の上では三角形の <b>面積そのもの</b>（ジラールの定理）。"
+      + "<br>辺 a, b, c だけから E を求めるのが <b>リュイリエの公式</b>（平面のヘロンの公式にあたる）。2 つの E が一致することを確かめよう。"
+      + "<br>三角形を小さくすると、E は 0 に近づき、角の和は 180° に、面積は平面の三角形の面積に近づきます。"
+      + "<b>小さい範囲なら地球の表面を平面とみなしてよい</b>のはこのためです（測量）。"
+      + "<br>「北極と赤道上の 2 点」では E = π/2 で、面積は球面全体 4π の <b>8 分の 1</b>。";
+  }
+  function fmtArea(x) { return x >= 1e6 ? f(x / 1e6, 2) + " 百万 km²" : f(x, 0) + " km²"; }
+
+  function draw() { if (S.tab === "sides") drawSides(); else drawArea(); S.save(); }
+  var redraw = UI.throttle(draw);
+  UI.tabs(S, "tab", redraw);
+  P.sync(); PK.sync(); markPreset(); draw();
+})();
+</script>
+</body>
+</html>
