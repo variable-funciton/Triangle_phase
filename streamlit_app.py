@@ -27,6 +27,7 @@ PAGES = {
         st.Page("views/ex_transform.py", title="演習（変換と合成）", icon="✏️", url_path="ex_transform"),
     ],
     "加法定理の応用": [
+        st.Page("views/addition_theorem.py", title="加法定理とその証明", icon="➕", url_path="addition_theorem"),
         st.Page("views/synthesis.py", title="三角関数の合成", icon="🧭", url_path="synthesis"),
         st.Page("views/product_sum.py", title="積和・和積の公式", icon="🔀", url_path="product_sum"),
         st.Page("views/ex_addition.py", title="演習（加法定理の応用）", icon="✏️", url_path="ex_addition"),
