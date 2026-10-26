@@ -61,6 +61,15 @@ with st.container(border=True):
     st.caption("関連: 後期課題5（グラフの変形・合成関数）・課題12（漸化式）")
     st.page_link("views/tent_map.py", label="ページを開く", icon="➡️")
 
+with st.container(border=True):
+    st.subheader("➕ 加法定理とその証明")
+    st.markdown(
+        r"$\sin(\alpha \pm \beta),\ \cos(\alpha \pm \beta),\ \tan(\alpha \pm \beta)$ の公式と、単位円上の 2 点の距離を使った証明（角を動かして確かめられる図つき）。"
+        r"$\sin 75^\circ = \sin(45^\circ + 30^\circ)$ のような例題も。合成・積和・和積の公式のもとになる。"
+    )
+    st.caption("関連: 後期課題7（加法定理）")
+    st.page_link("views/addition_theorem.py", label="ページを開く", icon="➡️")
+
 c3, c4 = st.columns(2)
 with c3:
     with st.container(border=True):
